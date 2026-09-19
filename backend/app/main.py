@@ -5,7 +5,7 @@ from sqlalchemy.orm import Session
 
 from app.api.auth import router as auth_router
 from app.core.database import get_db
-
+from app.api.reports import router as reports_router
 
 
 app = FastAPI(
@@ -17,7 +17,7 @@ app.add_middleware(
     CORSMiddleware,
     allow_origins=[
         "http://localhost:3000",
-        "http://127.0.0.1:8000"
+        "http://127.0.0.1:3000"
     ],
     allow_credentials=True,
     allow_methods=["*"],
@@ -25,7 +25,7 @@ app.add_middleware(
 )
 
 app.include_router(auth_router)
-
+app.include_router(reports_router)
 
 @app.get("/health")
 def health_check():
