@@ -5,14 +5,6 @@ import type {
   UploadResponse,
 } from "@/types/report";
 
-export interface StructuredParameter {
-  value: number;
-  flag: string | null;
-}
-
-export interface StructuredData {
-  [parameter: string]: StructuredParameter;
-}
 
 export async function uploadReport(
   file: File
@@ -75,11 +67,28 @@ export async function downloadReportFile(
 }
 
 export interface ReportAnalysis {
+  id?: number;
   report_id: number;
-  extracted_text: string;
+  extracted_text: string | null;
   structured_data: StructuredData | null;
   explanation: Record<string, unknown> | null;
-  created_at: string;
+  created_at?: string;
+}
+
+export interface StructuredParameter {
+  name: string;
+  value: number | null;
+  unit: string | null;
+  flag: "low" | "high" | "normal" | "critical" | "unknown" | null;
+  reference_range: string | null;
+  source_text: string | null;
+  confidence: "low" | "medium" | "high";
+}
+
+export interface StructuredData {
+  parameters: StructuredParameter[];
+  extraction_notes: string[];
+  extraction_method?: "groq" | "gemini" | "rule_based" | "failed";
 }
 
 export async function getReportAnalysis(

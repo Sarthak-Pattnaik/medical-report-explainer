@@ -239,56 +239,44 @@ export default function ReportDetailsPage() {
                 Structured Medical Parameters
               </h2>
 
-              {!analysis?.structured_data ||
-                Object.keys(analysis.structured_data).length === 0 ? (
-                <p className="text-gray-400">
-                  No structured parameters were extracted.
-                </p>
-              ) : (
+              {analysis?.structured_data?.parameters?.length ? (
                 <div className="overflow-x-auto">
                   <table className="w-full text-left text-sm">
                     <thead>
-                      <tr className="border-b border-white/10 text-gray-400">
-                        <th className="px-4 py-3">
-                          Parameter
-                        </th>
-
-                        <th className="px-4 py-3">
-                          Value
-                        </th>
-
-                        <th className="px-4 py-3">
-                          Flag
-                        </th>
+                      <tr className="border-b">
+                        <th className="px-4 py-3">Parameter</th>
+                        <th className="px-4 py-3">Value</th>
+                        <th className="px-4 py-3">Unit</th>
+                        <th className="px-4 py-3">Flag</th>
+                        <th className="px-4 py-3">Confidence</th>
                       </tr>
                     </thead>
 
                     <tbody>
-                      {Object.entries(analysis.structured_data).map(
-                        ([parameter, data]) => (
+                      {analysis.structured_data.parameters.map(
+                        (parameter, index) => (
                           <tr
-                            key={parameter}
-                            className="border-b border-white/5"
+                            key={`${parameter.name}-${index}`}
+                            className="border-b"
                           >
-                            <td className="px-4 py-3 text-gray-200">
-                              {formatParameterName(parameter)}
+                            <td className="px-4 py-3 font-medium">
+                              {parameter.name}
                             </td>
 
-                            <td className="px-4 py-3 text-gray-300">
-                              {data.value}
+                            <td className="px-4 py-3">
+                              {parameter.value ?? "Not available"}
                             </td>
 
-                            <td
-                              className={`px-4 py-3 font-medium ${data.flag === "high"
-                                  ? "text-red-400"
-                                  : data.flag === "low"
-                                    ? "text-yellow-400"
-                                    : "text-emerald-400"
-                                }`}
-                            >
-                              {data.flag
-                                ? data.flag.toUpperCase()
-                                : "UNKNOWN"}
+                            <td className="px-4 py-3">
+                              {parameter.unit ?? "—"}
+                            </td>
+
+                            <td className="px-4 py-3">
+                              {parameter.flag ?? "unknown"}
+                            </td>
+
+                            <td className="px-4 py-3">
+                              {parameter.confidence}
                             </td>
                           </tr>
                         )
@@ -296,8 +284,37 @@ export default function ReportDetailsPage() {
                     </tbody>
                   </table>
                 </div>
+              ) : (
+                <p className="text-sm text-gray-500">
+                  No structured parameters were extracted.
+                </p>
               )}
             </div>
+
+            {analysis?.structured_data?.extraction_notes?.length ? (
+              <div className="mt-4 rounded-lg border border-yellow-500/40 bg-yellow-500/10 p-4">
+                <h3 className="font-semibold text-yellow-600">
+                  Extraction Notes
+                </h3>
+
+                <ul className="mt-2 list-disc pl-5 text-sm">
+                  {analysis.structured_data.extraction_notes.map(
+                    (note, index) => (
+                      <li key={index}>{note}</li>
+                    )
+                  )}
+                </ul>
+              </div>
+            ) : null}
+
+            {analysis?.structured_data?.extraction_method && (
+              <p className="mt-3 text-sm text-gray-500">
+                Extraction method:{" "}
+                <span className="font-medium">
+                  {analysis.structured_data.extraction_method}
+                </span>
+              </p>
+            )}
 
             <div className="mt-8 rounded-xl border border-slate-800 bg-slate-950 p-5">
               <h3 className="font-semibold">

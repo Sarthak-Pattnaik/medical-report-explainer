@@ -20,6 +20,10 @@ from app.services.structured_extraction_service import (
     extract_structured_data,
 )
 
+from app.services.extraction_service import (
+    extract_medical_data,
+)
+
 router = APIRouter(
     prefix="/reports",
     tags=["Reports"]
@@ -79,9 +83,19 @@ async def upload_report(
 
     try:
         extracted_text = extract_text(str(file_path))
+        
+        structured_data, extraction_method = (
+        extract_medical_data(extracted_text)
+        )
 
-        structured_data = extract_structured_data(
-        extracted_text
+        print(
+            "SELECTED EXTRACTION METHOD:",
+            extraction_method,
+        )
+
+        if isinstance(structured_data, dict):
+            structured_data["extraction_method"] = (
+            extraction_method
         )
 
         analysis = ReportAnalysis(
