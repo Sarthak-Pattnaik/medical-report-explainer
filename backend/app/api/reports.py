@@ -4,6 +4,7 @@ from uuid import uuid4
 
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, status
 from sqlalchemy.orm import Session
+from fastapi.responses import Response
 
 from app.api.dependencies import get_current_user
 from app.core.database import get_db
@@ -16,9 +17,8 @@ from mimetypes import guess_type
 from app.models.report_analysis import ReportAnalysis
 from app.services.ocr_service import extract_text
 
-from app.services.structured_extraction_service import (
-    extract_structured_data,
-)
+import os
+from app.services.storage_service import StorageService
 
 from app.services.extraction_service import (
     extract_medical_data,
@@ -30,14 +30,16 @@ router = APIRouter(
 )
 
 
-UPLOAD_DIR = Path("storage/uploads")
-UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
+
 
 ALLOWED_EXTENSIONS = {".pdf", ".jpg", ".jpeg", ".png"}
 MAX_FILE_SIZE = 10 * 1024 * 1024  # 10 MB
 
 
-@router.post("/upload", status_code=status.HTTP_201_CREATED)
+@router.post(
+    "/upload",
+    status_code=status.HTTP_201_CREATED
+)
 async def upload_report(
     file: UploadFile = File(...),
     current_user: User = Depends(get_current_user),
@@ -65,27 +67,87 @@ async def upload_report(
             detail="File size must not exceed 10 MB"
         )
 
+    # --------------------------------------------------
+    # Create unique storage path
+    # --------------------------------------------------
+
     unique_filename = f"{uuid4()}{extension}"
-    file_path = UPLOAD_DIR / unique_filename
 
-    file_path.write_bytes(file_content)
-
-    report = MedicalReport(
-    user_id=current_user.id,
-    file_name=unique_filename,
-    file_path=str(file_path),
-    status="processing"
+    storage_path = (
+        f"{current_user.id}/{unique_filename}"
     )
 
-    db.add(report)
-    db.commit()
-    db.refresh(report)
+    content_types = {
+        ".pdf": "application/pdf",
+        ".jpg": "image/jpeg",
+        ".jpeg": "image/jpeg",
+        ".png": "image/png",
+    }
+
+    content_type = content_types.get(
+        extension,
+        "application/octet-stream"
+    )
+
+    storage_service = StorageService()
+    report = None
 
     try:
-        extracted_text = extract_text(str(file_path))
-        
+
+        # --------------------------------------------------
+        # Upload to Supabase Storage
+        # --------------------------------------------------
+
+        storage_service.upload_bytes(
+            file_data=file_content,
+            storage_path=storage_path,
+            content_type=content_type,
+        )
+
+        # --------------------------------------------------
+        # Create database record
+        # --------------------------------------------------
+
+        report = MedicalReport(
+            user_id=current_user.id,
+            file_name=unique_filename,
+            file_path=storage_path,
+            status="processing"
+        )
+
+        db.add(report)
+        db.commit()
+        db.refresh(report)
+
+        # --------------------------------------------------
+        # Download from Supabase temporarily for OCR
+        # --------------------------------------------------
+
+        ocr_file_path = storage_service.download_to_temp(
+            storage_path=storage_path,
+            suffix=extension,
+        )
+
+        try:
+            extracted_text = extract_text(
+                ocr_file_path
+            )
+
+        finally:
+            try:
+                os.unlink(ocr_file_path)
+            except OSError:
+                pass
+
+        # --------------------------------------------------
+        # Structured extraction
+        # Groq → Gemini → Rule-based
+        # --------------------------------------------------
+
         structured_data, extraction_method = (
-        extract_medical_data(extracted_text)
+            extract_medical_data(
+                extracted_text
+            )
         )
 
         print(
@@ -94,15 +156,19 @@ async def upload_report(
         )
 
         if isinstance(structured_data, dict):
-            structured_data["extraction_method"] = (
-            extraction_method
-        )
+            structured_data[
+                "extraction_method"
+            ] = extraction_method
+
+        # --------------------------------------------------
+        # Save analysis
+        # --------------------------------------------------
 
         analysis = ReportAnalysis(
-        report_id=report.id,
-        extracted_text=extracted_text,
-        structured_data=structured_data,
-        explanation=None
+            report_id=report.id,
+            extracted_text=extracted_text,
+            structured_data=structured_data,
+            explanation=None
         )
 
         db.add(analysis)
@@ -115,17 +181,20 @@ async def upload_report(
     except Exception as error:
         db.rollback()
 
-        report.status = "extraction_failed"
-
-        db.add(report)
-        db.commit()
+        # Report was already committed before processing.
+        # Keep the Storage file so the report remains accessible.
+        if report is not None:
+            try:
+                report.status = "extraction_failed"
+                db.add(report)
+                db.commit()
+            except Exception:
+                db.rollback()
 
         raise HTTPException(
             status_code=500,
             detail=f"Text extraction failed: {str(error)}"
         )
-
-    
 
     return {
         "message": "Report uploaded successfully",
@@ -133,7 +202,6 @@ async def upload_report(
         "file_name": report.file_name,
         "status": report.status
     }
-
 
 from sqlalchemy import select
 
@@ -197,34 +265,60 @@ def get_report_file(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
-    report = db.scalar(
-        select(MedicalReport).where(
-            MedicalReport.id == report_id,
-            MedicalReport.user_id == current_user.id
-        )
+    report = (
+        db.query(MedicalReport)
+        .filter(MedicalReport.id == report_id)
+        .first()
     )
 
-    if report is None:
+    if not report:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Report not found"
         )
 
-    file_path = Path(report.file_path)
-
-    if not file_path.is_file():
+    # Ensure the logged-in user owns this report
+    if report.user_id != current_user.id:
         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Report file not found"
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="You do not have permission to access this report"
         )
 
-    media_type, _ = guess_type(report.file_name)
-    media_type = media_type or "application/octet-stream"
+    try:
+        storage_service = StorageService()
 
-    return FileResponse(
-        path=file_path,
+        file_data = storage_service.download_file(
+            report.file_path
+        )
+
+    except Exception as error:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"File could not be retrieved: {str(error)}"
+        )
+
+    extension = Path(report.file_name).suffix.lower()
+
+    content_types = {
+        ".pdf": "application/pdf",
+        ".jpg": "image/jpeg",
+        ".jpeg": "image/jpeg",
+        ".png": "image/png",
+    }
+
+    media_type = content_types.get(
+        extension,
+        "application/octet-stream"
+    )
+
+    return Response(
+        content=file_data,
         media_type=media_type,
-        filename=report.file_name
+        headers={
+            "Content-Disposition": (
+                f'inline; filename="{report.file_name}"'
+            )
+        }
     )
 
 @router.get("/{report_id}/analysis")
