@@ -2,6 +2,7 @@ from datetime import datetime
 from typing import TYPE_CHECKING, Any
 
 from sqlalchemy import (
+    Column,
     DateTime,
     ForeignKey,
     JSON,
@@ -54,3 +55,5 @@ class ReportAnalysis(Base):
     report: Mapped["MedicalReport"] = relationship(
         back_populates="analyses"
     )
+
+    clinical_context = Column(JSON, nullable=True)

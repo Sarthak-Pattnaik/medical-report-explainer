@@ -24,6 +24,10 @@ from app.services.extraction_service import (
     extract_medical_data,
 )
 
+from app.services.clinical_context_service import (
+    GroqClinicalContextService
+)
+
 router = APIRouter(
     prefix="/reports",
     tags=["Reports"]
@@ -161,6 +165,37 @@ async def upload_report(
             ] = extraction_method
 
         # --------------------------------------------------
+        # Clinical context extraction
+        # --------------------------------------------------
+
+        try:
+            clinical_context_service = GroqClinicalContextService()
+
+            clinical_context = clinical_context_service.extract(
+                extracted_text
+            )
+
+            clinical_context_data = clinical_context.model_dump()
+
+        except Exception as error:
+            print(
+                "CLINICAL CONTEXT EXTRACTION FAILED:",
+            error
+            )
+
+            clinical_context_data = {
+                "medical_history": [],
+                "symptoms": [],
+                "medications": [],
+                "clinical_findings": [],
+                "recommendations": [],
+                "relevant_context": [],
+                "context_notes": [
+                "Clinical context extraction was unavailable."
+                ]
+            }
+
+        # --------------------------------------------------
         # Save analysis
         # --------------------------------------------------
 
@@ -168,6 +203,7 @@ async def upload_report(
             report_id=report.id,
             extracted_text=extracted_text,
             structured_data=structured_data,
+            clinical_context=clinical_context_data,
             explanation=None
         )
 
