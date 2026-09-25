@@ -91,11 +91,58 @@ export interface StructuredData {
   extraction_method?: "groq" | "gemini" | "rule_based" | "failed";
 }
 
+
+export interface ParameterExplanation {
+  parameter_name: string;
+  result_summary: string;
+  what_it_measures: string;
+  what_your_result_means: string;
+  why_it_matters: string;
+  limitations: string[];
+  source_text: string | null;
+  confidence: "low" | "medium" | "high";
+}
+
+export interface ClinicalContextExplanation {
+  category: string;
+  item: string;
+  explanation: string;
+  source_text: string | null;
+  confidence: "low" | "medium" | "high";
+}
+
+export interface MedicalExplanation {
+  report_summary: string;
+  parameter_explanations: ParameterExplanation[];
+  clinical_context_explanations: ClinicalContextExplanation[];
+  important_observations: string[];
+  limitations: string[];
+  disclaimer: string;
+}
+
+export interface ReportExplanationResponse {
+  report_id: number;
+  explanation: MedicalExplanation;
+  created_at: string;
+}
+
+
 export async function getReportAnalysis(
   reportId: number
 ): Promise<ReportAnalysis> {
   const response = await api.get(
     `/reports/${reportId}/analysis`
+  );
+
+  return response.data;
+}
+
+
+export async function getReportExplanation(
+  reportId: number
+): Promise<ReportExplanationResponse> {
+  const response = await api.get(
+    `/reports/${reportId}/explanation`
   );
 
   return response.data;

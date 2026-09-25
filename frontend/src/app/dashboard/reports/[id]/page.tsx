@@ -3,17 +3,20 @@
 
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
+import axios from "axios";
 
 import { useAuth } from "@/context/AuthContext";
-import {
-  getReportDetails,
-  type ReportDetails,
-} from "@/services/reportService";
-import { downloadReportFile } from "@/services/reportService";
+import MedicalExplanationSection from "@/components/reports/MedicalExplanationSection";
 
 import {
+  getReportDetails,
   getReportAnalysis,
-  ReportAnalysis
+  getReportExplanation,
+  downloadReportFile,
+  type ReportDetails,
+  type ReportAnalysis,
+  type MedicalExplanation,
+  type ClinicalContextExplanation,
 } from "@/services/reportService";
 
 function formatParameterName(parameter: string): string {
@@ -42,6 +45,15 @@ export default function ReportDetailsPage() {
   const [analysisError, setAnalysisError] = useState("");
 
   const reportId = Number(params.id);
+
+  const [explanation, setExplanation] =
+    useState<MedicalExplanation | null>(null);
+
+  const [isLoadingExplanation, setIsLoadingExplanation] =
+    useState(true);
+
+  const [explanationError, setExplanationError] =
+    useState("");
 
   const handlePreviewFile = async () => {
     try {
@@ -80,6 +92,46 @@ export default function ReportDetailsPage() {
 
     fetchAnalysis();
   }, [reportId]);
+
+
+  useEffect(() => {
+    if (
+      !isAuthenticated ||
+      !Number.isInteger(reportId) ||
+      reportId <= 0
+    ) {
+      return;
+    }
+
+    const fetchExplanation = async () => {
+      try {
+        setIsLoadingExplanation(true);
+        setExplanationError("");
+
+        const data = await getReportExplanation(reportId);
+
+        setExplanation(data.explanation);
+      } catch (error) {
+        // This acts as a type guard. Inside this block, TypeScript knows 'error' has a 'response' property.
+        if (axios.isAxiosError(error) && error.response?.status === 404) {
+          setExplanationError(
+            "Medical explanation is not available for this report."
+          );
+        } else {
+          // Only log actual unexpected errors
+          console.error("Failed to fetch explanation:", error);
+          setExplanationError(
+            "An error occurred while loading the explanation."
+          );
+        }
+      } finally {
+        setIsLoadingExplanation(false);
+      }
+    };
+
+    fetchExplanation();
+  }, [isAuthenticated, reportId]);
+
 
   useEffect(() => {
     if (!loading && !isAuthenticated) {
@@ -228,7 +280,7 @@ export default function ReportDetailsPage() {
               )}
 
               {!isLoadingAnalysis && analysis && (
-                <pre className="max-h-[600px] overflow-auto whitespace-pre-wrap text-sm leading-6 text-gray-300">
+                <pre className="max-h-150 overflow-auto whitespace-pre-wrap text-sm leading-6 text-gray-300">
                   {analysis.extracted_text}
                 </pre>
               )}
@@ -316,15 +368,26 @@ export default function ReportDetailsPage() {
               </p>
             )}
 
-            <div className="mt-8 rounded-xl border border-slate-800 bg-slate-950 p-5">
-              <h3 className="font-semibold">
-                Report Analysis
-              </h3>
-
-              <p className="mt-2 text-sm text-slate-400">
-                Analysis functionality will be added in the next stage.
-              </p>
-            </div>
+            {isLoadingExplanation ? (
+              <div className="text-slate-400">
+                Loading medical explanation...
+              </div>
+            ) : explanation ? (
+              <MedicalExplanationSection
+                explanation={explanation}
+                loading={isLoadingExplanation}
+                error={explanationError}
+              />
+            ) : explanationError ? (
+              <div className="text-slate-400">
+                {explanationError}
+              </div>
+            ) : (
+              <div className="text-slate-400">
+                A medical explanation is not available
+                for this report.
+              </div>
+            )}
 
           </section>
         ) : null}

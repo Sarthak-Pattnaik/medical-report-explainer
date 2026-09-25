@@ -13,7 +13,7 @@ from app.models.user import User
 
 from fastapi.responses import FileResponse
 from mimetypes import guess_type
-
+from sqlalchemy import select
 from app.models.report_analysis import ReportAnalysis
 from app.services.ocr_service import extract_text
 
@@ -26,6 +26,10 @@ from app.services.extraction_service import (
 
 from app.services.clinical_context_service import (
     GroqClinicalContextService
+)
+
+from app.services.explanation_service import (
+    GroqExplanationService
 )
 
 router = APIRouter(
@@ -195,6 +199,35 @@ async def upload_report(
                 ]
             }
 
+        
+        # --------------------------------------------------
+        # Medical explanation generation
+        # --------------------------------------------------
+
+        try:
+            explanation_service = GroqExplanationService()
+
+            explanation = explanation_service.explain(
+                extracted_text=extracted_text,
+                structured_data=structured_data,
+                clinical_context=clinical_context_data
+            )
+
+            explanation_data = explanation.model_dump()
+
+            print(
+                "MEDICAL EXPLANATION GENERATED SUCCESSFULLY"
+            )
+
+        except Exception as error:
+            print(
+                "MEDICAL EXPLANATION GENERATION FAILED:",
+                error
+            )
+
+            explanation_data = None
+
+
         # --------------------------------------------------
         # Save analysis
         # --------------------------------------------------
@@ -204,12 +237,12 @@ async def upload_report(
             extracted_text=extracted_text,
             structured_data=structured_data,
             clinical_context=clinical_context_data,
-            explanation=None
+            explanation=explanation_data
         )
 
         db.add(analysis)
 
-        report.status = "text_extracted"
+        report.status = "completed"
 
         db.commit()
         db.refresh(report)
@@ -239,7 +272,6 @@ async def upload_report(
         "status": report.status
     }
 
-from sqlalchemy import select
 
 
 @router.get("/")
@@ -382,6 +414,56 @@ def get_report_analysis(
         "report_id": analysis.report_id,
         "extracted_text": analysis.extracted_text,
         "structured_data": analysis.structured_data,
+        "explanation": analysis.explanation,
+        "created_at": analysis.created_at
+    }
+
+
+@router.get("/{report_id}/explanation")
+def get_report_explanation(
+    report_id: int,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    # --------------------------------------------------
+    # Fetch explanation with ownership verification
+    # --------------------------------------------------
+
+    analysis = db.scalar(
+        select(ReportAnalysis)
+        .join(MedicalReport)
+        .where(
+            ReportAnalysis.report_id == report_id,
+            MedicalReport.user_id == current_user.id
+        )
+    )
+
+    # --------------------------------------------------
+    # Handle missing analysis
+    # --------------------------------------------------
+
+    if analysis is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Analysis not found"
+        )
+
+    # --------------------------------------------------
+    # Handle unavailable explanation
+    # --------------------------------------------------
+
+    if analysis.explanation is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Medical explanation is not available for this report"
+        )
+
+    # --------------------------------------------------
+    # Return explanation
+    # --------------------------------------------------
+
+    return {
+        "report_id": analysis.report_id,
         "explanation": analysis.explanation,
         "created_at": analysis.created_at
     }
