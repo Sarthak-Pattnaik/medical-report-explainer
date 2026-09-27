@@ -4,7 +4,7 @@ import type {
   MedicalReport,
   UploadResponse,
 } from "@/types/report";
-
+import axios from "axios";
 
 export async function uploadReport(
   file: File
@@ -55,15 +55,25 @@ export function getReportFileUrl(reportId: number): string {
 
 export async function downloadReportFile(
   reportId: number
-): Promise<Blob> {
-  const response = await api.get(
-    `/reports/${reportId}/file`,
-    {
-      responseType: "blob",
-    }
-  );
+): Promise<Blob | null> {
+  try {
+    const response = await api.get(
+      `/reports/${reportId}/file`,
+      {
+        responseType: "blob",
+      }
+    );
 
-  return response.data;
+    return response.data;
+  } catch (error) {
+    // If the file doesn't exist on the server, return null gracefully
+    if (axios.isAxiosError(error) && error.response?.status === 404) {
+      return null;
+    }
+    
+    // Throw all other errors (500, network issues, unauthorized, etc.)
+    throw error;
+  }
 }
 
 export interface ReportAnalysis {
@@ -126,24 +136,42 @@ export interface ReportExplanationResponse {
   created_at: string;
 }
 
-
 export async function getReportAnalysis(
   reportId: number
-): Promise<ReportAnalysis> {
-  const response = await api.get(
-    `/reports/${reportId}/analysis`
-  );
+): Promise<ReportAnalysis | null> {
+  try {
+    const response = await api.get(
+      `/reports/${reportId}/analysis`
+    );
 
-  return response.data;
+    return response.data;
+  } catch (error) {
+    // If the error is specifically a 404 Not Found, return null
+    if (axios.isAxiosError(error) && error.response?.status === 404) {
+      return null;
+    }
+    
+    // For all other errors, throw them so the component's catch block can handle them
+    throw error;
+  }
 }
-
 
 export async function getReportExplanation(
   reportId: number
-): Promise<ReportExplanationResponse> {
-  const response = await api.get(
-    `/reports/${reportId}/explanation`
-  );
+): Promise<ReportExplanationResponse | null> {
+  try {
+    const response = await api.get(
+      `/reports/${reportId}/explanation`
+    );
 
-  return response.data;
+    return response.data;
+  } catch (error) {
+    // If the explanation doesn't exist yet, return null gracefully
+    if (axios.isAxiosError(error) && error.response?.status === 404) {
+      return null;
+    }
+    
+    // Throw all other errors (500, network issues, etc.)
+    throw error;
+  }
 }
