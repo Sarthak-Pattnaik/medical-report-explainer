@@ -28,3 +28,7 @@ storage/
 
 # Uploaded medical reports
 storage/uploads/
+
+# typescript
+*.tsbuildinfo
+next-env.d.ts
