@@ -9,9 +9,9 @@ The application allows users to upload medical reports, extract their contents u
 
 > **Live Demo:** [MediClarity](https://medical-report-explainer-lake.vercel.app/)
 
-> **Backend API:** [FastAPI Server](https://medical-report-explainer-u9nz.onrender.com)
+> **Backend API:** [FastAPI Server](https://medical-report-explainer-backend.onrender.com/docs)
 
-> **API Documentation:** [Swagger UI](https://medical-report-explainer-u9nz.onrender.com/docs)
+> **API Documentation:** [Swagger UI](https://medical-report-explainer-backend.onrender.com/docs)
 
 ---
 
@@ -499,7 +499,7 @@ NEXT_PUBLIC_API_URL=http://127.0.0.1:8000
 For production, configure the variable in Vercel:
 
 ```env
-NEXT_PUBLIC_API_URL=https://medical-report-explainer-u9nz.onrender.com
+NEXT_PUBLIC_API_URL=https://medical-report-explainer-backend.onrender.com
 ```
 
 The `NEXT_PUBLIC_` prefix makes the value accessible to frontend code. Only public configuration values should use this prefix.
@@ -544,7 +544,7 @@ The authentication and upload routes are summarized by operation because their e
 
 For the complete list of available routes, HTTP methods, request parameters, and response schemas, refer to the interactive API documentation:
 
-**[Open MediClarity Swagger UI](https://medical-report-explainer-u9nz.onrender.com/docs)**
+**[Open MediClarity Swagger UI](https://medical-report-explainer-backend.onrender.com/docs)**
 
 All protected report operations enforce user access and report ownership on the backend.
 
@@ -567,7 +567,7 @@ The Next.js application is deployed on Vercel.
 
 - Root directory: `frontend`
 - Framework: Next.js
-- Production API URL: `https://medical-report-explainer-u9nz.onrender.com`
+- Production API URL: `https://medical-report-explainer-backend.onrender.com`
 
 ### Backend Deployment
 
