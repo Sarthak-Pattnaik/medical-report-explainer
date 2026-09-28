@@ -136,7 +136,6 @@ This approach allows the application to attempt alternative extraction methods w
 
 ## Application Screenshots
 
-Add screenshots of your deployed application in the `screenshots/` directory and update the image paths below.
 
 | Dashboard | Report Details |
 |---|---|
@@ -146,7 +145,6 @@ Add screenshots of your deployed application in the `screenshots/` directory and
 |---|---|
 | ![Medical Explanation](screenshots/explanation.png) | ![Login Page](screenshots/login.png) |
 
-*Replace the screenshot placeholders with actual screenshots from the running application.*
 
 ---
 
