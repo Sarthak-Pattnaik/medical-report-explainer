@@ -19,6 +19,8 @@ import {
   type ClinicalContextExplanation,
 } from "@/services/reportService";
 
+import ReportChatWidget from "@/components/reports/ReportChatWidget";
+
 function formatParameterName(parameter: string): string {
   return parameter
     .replace(/_/g, " ")
@@ -744,6 +746,8 @@ export default function ReportDetailsPage() {
                 loading={isLoadingExplanation}
                 error={explanationError}
               />
+
+              <ReportChatWidget reportId={reportId} />
             </section>
           </>
         ) : null}

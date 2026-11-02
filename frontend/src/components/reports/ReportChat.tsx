@@ -117,7 +117,7 @@ export default function ReportChat({ reportId }: ReportChatProps) {
       if (axios.isAxiosError(error)) {
         setError(
           error.response?.data?.detail ??
-            "Unable to generate a response. Please try again."
+          "Unable to generate a response. Please try again."
         );
       } else {
         setError("Something went wrong. Please try again.");
@@ -277,26 +277,23 @@ export default function ReportChat({ reportId }: ReportChatProps) {
             {messages.map((message) => (
               <div
                 key={message.id}
-                className={`mb-5 flex ${
-                  message.role === "user"
+                className={`mb-5 flex ${message.role === "user"
                     ? "justify-end"
                     : "justify-start"
-                }`}
+                  }`}
               >
                 <div
-                  className={`max-w-[90%] min-w-0 rounded-2xl p-4 sm:max-w-[85%] ${
-                    message.role === "user"
+                  className={`max-w-[90%] min-w-0 rounded-2xl p-4 sm:max-w-[85%] ${message.role === "user"
                       ? "rounded-br-sm border border-emerald-400/20 bg-emerald-400/10"
                       : "rounded-bl-sm border border-white/[0.07] bg-[#0b1120]"
-                  }`}
+                    }`}
                 >
                   <div className="mb-2 flex items-center gap-2">
                     <span
-                      className={`text-xs font-semibold ${
-                        message.role === "user"
+                      className={`text-xs font-semibold ${message.role === "user"
                           ? "text-emerald-300"
                           : "text-slate-300"
-                      }`}
+                        }`}
                     >
                       {message.role === "user"
                         ? "You"
@@ -306,9 +303,100 @@ export default function ReportChat({ reportId }: ReportChatProps) {
 
                   {message.role === "assistant" ? (
                     <div className="prose prose-invert prose-sm max-w-none break-words prose-headings:font-semibold prose-headings:text-white prose-p:leading-7 prose-p:text-slate-300 prose-strong:text-white prose-li:text-slate-300 prose-th:text-slate-200 prose-td:text-slate-300 prose-a:text-emerald-300">
-                      <ReactMarkdown remarkPlugins={[remarkGfm]}>
+
+                      <ReactMarkdown
+                        remarkPlugins={[remarkGfm]}
+                        components={{
+                          table: ({ children }) => (
+                            <div className="my-4 w-full overflow-x-auto rounded-lg border border-white/10">
+                              <table className="w-full min-w-[480px] border-collapse text-left text-sm">
+                                {children}
+                              </table>
+                            </div>
+                          ),
+
+                          thead: ({ children }) => (
+                            <thead className="bg-white/10 text-gray-100">
+                              {children}
+                            </thead>
+                          ),
+
+                          th: ({ children }) => (
+                            <th className="border-b border-white/10 px-4 py-3 font-semibold">
+                              {children}
+                            </th>
+                          ),
+
+                          td: ({ children }) => (
+                            <td className="border-b border-white/10 px-4 py-3 align-top leading-relaxed text-gray-300">
+                              {children}
+                            </td>
+                          ),
+
+                          h1: ({ children }) => (
+                            <h1 className="mb-3 mt-5 text-xl font-bold text-white">
+                              {children}
+                            </h1>
+                          ),
+
+                          h2: ({ children }) => (
+                            <h2 className="mb-2 mt-4 text-lg font-semibold text-white">
+                              {children}
+                            </h2>
+                          ),
+
+                          h3: ({ children }) => (
+                            <h3 className="mb-2 mt-3 text-base font-semibold text-white">
+                              {children}
+                            </h3>
+                          ),
+
+                          p: ({ children }) => (
+                            <p className="mb-3 break-words text-sm leading-7 text-gray-300">
+                              {children}
+                            </p>
+                          ),
+
+                          ul: ({ children }) => (
+                            <ul className="mb-3 ml-5 list-disc space-y-2 text-sm leading-7 text-gray-300">
+                              {children}
+                            </ul>
+                          ),
+
+                          ol: ({ children }) => (
+                            <ol className="mb-3 ml-5 list-decimal space-y-2 text-sm leading-7 text-gray-300">
+                              {children}
+                            </ol>
+                          ),
+
+                          li: ({ children }) => (
+                            <li className="pl-1">{children}</li>
+                          ),
+
+                          strong: ({ children }) => (
+                            <strong className="font-semibold text-white">
+                              {children}
+                            </strong>
+                          ),
+
+                          blockquote: ({ children }) => (
+                            <blockquote className="my-3 border-l-2 border-emerald-500 pl-4 text-gray-400">
+                              {children}
+                            </blockquote>
+                          ),
+
+                          code: ({ children }) => (
+                            <code className="rounded bg-white/10 px-1.5 py-0.5 text-emerald-300">
+                              {children}
+                            </code>
+                          ),
+
+                          hr: () => <hr className="my-4 border-white/10" />,
+                        }}
+                      >
                         {message.content}
                       </ReactMarkdown>
+
                     </div>
                   ) : (
                     <p className="whitespace-pre-wrap break-words text-sm leading-7 text-slate-200">

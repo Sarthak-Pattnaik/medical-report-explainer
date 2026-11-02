@@ -13,7 +13,6 @@ interface MedicalExplanationSectionProps {
   error: string;
 }
 
-import ReportChat from "@/components/reports/ReportChat";
 
 const panel =
   "rounded-2xl border border-white/[0.07] bg-slate-900/60";
@@ -451,8 +450,7 @@ export default function MedicalExplanationSection({
           </div>
         </div>
       </aside>
-      {/* Report-specific AI Chatbot */}
-      <ReportChat reportId={reportId} />
+      
     </section>
   );
 }
