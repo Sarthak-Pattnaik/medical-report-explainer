@@ -32,6 +32,9 @@ from app.services.explanation_service import (
     GroqExplanationService
 )
 
+from app.models.chat_message import ChatMessage
+from app.schemas.chat import ChatRequest
+
 router = APIRouter(
     prefix="/reports",
     tags=["Reports"]
@@ -466,4 +469,277 @@ def get_report_explanation(
         "report_id": analysis.report_id,
         "explanation": analysis.explanation,
         "created_at": analysis.created_at
+    }
+
+@router.post("/{report_id}/chat")
+def chat_with_report(
+    report_id: int,
+    request: ChatRequest,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    # --------------------------------------------------
+    # 1. Verify report ownership
+    # --------------------------------------------------
+
+    report = db.scalar(
+        select(MedicalReport).where(
+            MedicalReport.id == report_id,
+            MedicalReport.user_id == current_user.id
+        )
+    )
+
+    if report is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Report not found"
+        )
+
+    # --------------------------------------------------
+    # 2. Retrieve latest report analysis
+    # --------------------------------------------------
+
+    analysis = db.scalar(
+        select(ReportAnalysis)
+        .where(
+            ReportAnalysis.report_id == report_id
+        )
+        .order_by(
+            ReportAnalysis.created_at.desc(),
+            ReportAnalysis.id.desc()
+        )
+        .limit(1)
+    )
+
+    if analysis is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Analysis not found for this report"
+        )
+
+    if analysis.explanation is None:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Chat is unavailable because the report explanation has not been generated"
+        )
+
+    # --------------------------------------------------
+    # 3. Retrieve previous conversation messages
+    # --------------------------------------------------
+
+    previous_messages = db.scalars(
+        select(ChatMessage)
+        .where(
+            ChatMessage.report_id == report_id
+        )
+        .order_by(
+            ChatMessage.created_at.desc(),
+            ChatMessage.id.desc()
+        )
+        .limit(12)
+    ).all()
+
+    # Reverse to restore chronological order.
+    conversation_history = [
+        {
+            "role": message.role,
+            "content": message.content
+        }
+        for message in reversed(previous_messages)
+    ]
+
+    # --------------------------------------------------
+    # 4. Generate AI response
+    # --------------------------------------------------
+
+    try:
+        explanation_service = GroqExplanationService()
+
+        answer = explanation_service.chat(
+            extracted_text=analysis.extracted_text or "",
+            structured_data=analysis.structured_data or {},
+            clinical_context=analysis.clinical_context or {},
+            explanation=analysis.explanation or {},
+            conversation_history=conversation_history,
+            user_message=request.message
+        )
+
+    except Exception:
+        db.rollback()
+
+        print("REPORT CHAT GENERATION FAILED")
+
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail="Unable to generate a response. Please try again."
+        )
+
+    # --------------------------------------------------
+    # 5. Save user message and AI response
+    # --------------------------------------------------
+
+    user_message = ChatMessage(
+        report_id=report_id,
+        role="user",
+        content=request.message
+    )
+
+    assistant_message = ChatMessage(
+        report_id=report_id,
+        role="assistant",
+        content=answer
+    )
+
+    try:
+        db.add_all([
+            user_message,
+            assistant_message
+        ])
+
+        db.commit()
+
+        db.refresh(user_message)
+        db.refresh(assistant_message)
+
+    except Exception:
+        db.rollback()
+
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Unable to save chat messages"
+        )
+
+    # --------------------------------------------------
+    # 6. Return response
+    # --------------------------------------------------
+
+    return {
+        "report_id": report_id,
+        "user_message": {
+            "id": user_message.id,
+            "role": user_message.role,
+            "content": user_message.content,
+            "created_at": user_message.created_at
+        },
+        "assistant_message": {
+            "id": assistant_message.id,
+            "role": assistant_message.role,
+            "content": assistant_message.content,
+            "created_at": assistant_message.created_at
+        }
+    }
+
+@router.get("/{report_id}/chat")
+def get_report_chat(
+    report_id: int,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    # Verify report ownership.
+    report = db.scalar(
+        select(MedicalReport).where(
+            MedicalReport.id == report_id,
+            MedicalReport.user_id == current_user.id
+        )
+    )
+
+    if report is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Report not found"
+        )
+
+    # Retrieve chat messages in chronological order.
+    messages = db.scalars(
+        select(ChatMessage)
+        .where(
+            ChatMessage.report_id == report_id
+        )
+        .order_by(
+            ChatMessage.created_at.asc(),
+            ChatMessage.id.asc()
+        )
+    ).all()
+
+    return {
+        "report_id": report_id,
+        "messages": [
+            {
+                "id": message.id,
+                "role": message.role,
+                "content": message.content,
+                "created_at": message.created_at
+            }
+            for message in messages
+        ]
+    }
+
+@router.delete("/{report_id}/chat")
+def delete_report_chat(
+    report_id: int,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    # --------------------------------------------------
+    # 1. Verify report ownership
+    # --------------------------------------------------
+
+    report = db.scalar(
+        select(MedicalReport).where(
+            MedicalReport.id == report_id,
+            MedicalReport.user_id == current_user.id
+        )
+    )
+
+    if report is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Report not found"
+        )
+
+    # --------------------------------------------------
+    # 2. Retrieve existing chat messages
+    # --------------------------------------------------
+
+    messages = db.scalars(
+        select(ChatMessage).where(
+            ChatMessage.report_id == report_id
+        )
+    ).all()
+
+    if not messages:
+        return {
+            "report_id": report_id,
+            "message": "No chat history exists for this report",
+            "deleted_count": 0
+        }
+
+    # --------------------------------------------------
+    # 3. Delete chat messages
+    # --------------------------------------------------
+
+    deleted_count = len(messages)
+
+    try:
+        for message in messages:
+            db.delete(message)
+
+        db.commit()
+
+    except Exception:
+        db.rollback()
+
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Unable to delete chat history"
+        )
+
+    # --------------------------------------------------
+    # 4. Return confirmation
+    # --------------------------------------------------
+
+    return {
+        "report_id": report_id,
+        "message": "Chat history deleted successfully",
+        "deleted_count": deleted_count
     }

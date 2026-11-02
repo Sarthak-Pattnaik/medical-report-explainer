@@ -7,10 +7,13 @@ import type {
 } from "@/services/reportService";
 
 interface MedicalExplanationSectionProps {
+  reportId: number;
   explanation: MedicalExplanation | null;
   loading: boolean;
   error: string;
 }
+
+import ReportChat from "@/components/reports/ReportChat";
 
 const panel =
   "rounded-2xl border border-white/[0.07] bg-slate-900/60";
@@ -123,6 +126,7 @@ function ContextCard({
 }
 
 export default function MedicalExplanationSection({
+  reportId,
   explanation,
   loading,
   error,
@@ -148,54 +152,54 @@ export default function MedicalExplanationSection({
   }
 
 
-if (error || !explanation) {
-  return (
-    <section className={`${panel} mt-8 overflow-hidden`}>
-      {/* Section heading */}
-      <div className="border-b border-white/6 px-6 py-5 sm:px-8">
-        <SectionHeading
-          eyebrow="AI-assisted analysis"
-          title="Medical Report Explanation"
-        />
-      </div>
-
-      {/* Empty state */}
-      <div className="flex flex-col items-center px-6 py-10 text-center sm:py-12">
-        <div className="flex h-14 w-14 items-center justify-center rounded-2xl border border-emerald-400/15 bg-emerald-400/6">
-          <svg
-            viewBox="0 0 24 24"
-            fill="none"
-            className="h-7 w-7 text-emerald-400"
-            stroke="currentColor"
-            strokeWidth="1.5"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          >
-            <path d="M12 3v3m0 12v3M3 12h3m12 0h3" />
-            <path d="M8 8l-2-2m10 10 2 2m0-12-2 2M8 16l-2 2" />
-            <circle cx="12" cy="12" r="5" />
-          </svg>
+  if (error || !explanation) {
+    return (
+      <section className={`${panel} mt-8 overflow-hidden`}>
+        {/* Section heading */}
+        <div className="border-b border-white/6 px-6 py-5 sm:px-8">
+          <SectionHeading
+            eyebrow="AI-assisted analysis"
+            title="Medical Report Explanation"
+          />
         </div>
 
-        <h3 className="mt-5 text-base font-semibold text-white">
-          Explanation not available yet
-        </h3>
+        {/* Empty state */}
+        <div className="flex flex-col items-center px-6 py-10 text-center sm:py-12">
+          <div className="flex h-14 w-14 items-center justify-center rounded-2xl border border-emerald-400/15 bg-emerald-400/6">
+            <svg
+              viewBox="0 0 24 24"
+              fill="none"
+              className="h-7 w-7 text-emerald-400"
+              stroke="currentColor"
+              strokeWidth="1.5"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              <path d="M12 3v3m0 12v3M3 12h3m12 0h3" />
+              <path d="M8 8l-2-2m10 10 2 2m0-12-2 2M8 16l-2 2" />
+              <circle cx="12" cy="12" r="5" />
+            </svg>
+          </div>
 
-        <p className="mt-2 max-w-md text-sm leading-6 text-slate-400">
-          An AI-generated explanation has not been
-          generated for this report. Your uploaded
-          document and extracted medical information
-          are still available above.
-        </p>
+          <h3 className="mt-5 text-base font-semibold text-white">
+            Explanation not available yet
+          </h3>
 
-        <span className="mt-5 inline-flex items-center gap-2 rounded-full border border-slate-700/60 bg-slate-800/40 px-3 py-1.5 text-xs text-slate-500">
-          <span className="h-1.5 w-1.5 rounded-full bg-slate-500" />
-          Explanation unavailable
-        </span>
-      </div>
-    </section>
-  );
-}
+          <p className="mt-2 max-w-md text-sm leading-6 text-slate-400">
+            An AI-generated explanation has not been
+            generated for this report. Your uploaded
+            document and extracted medical information
+            are still available above.
+          </p>
+
+          <span className="mt-5 inline-flex items-center gap-2 rounded-full border border-slate-700/60 bg-slate-800/40 px-3 py-1.5 text-xs text-slate-500">
+            <span className="h-1.5 w-1.5 rounded-full bg-slate-500" />
+            Explanation unavailable
+          </span>
+        </div>
+      </section>
+    );
+  }
 
 
   return (
@@ -447,6 +451,8 @@ if (error || !explanation) {
           </div>
         </div>
       </aside>
+      {/* Report-specific AI Chatbot */}
+      <ReportChat reportId={reportId} />
     </section>
   );
 }

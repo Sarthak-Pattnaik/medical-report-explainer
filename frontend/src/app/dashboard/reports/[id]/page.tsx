@@ -739,6 +739,7 @@ export default function ReportDetailsPage() {
 
 
               <MedicalExplanationSection
+                reportId={reportId}
                 explanation={explanation}
                 loading={isLoadingExplanation}
                 error={explanationError}

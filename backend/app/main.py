@@ -7,11 +7,21 @@ from app.api.auth import router as auth_router
 from app.core.database import get_db
 from app.api.reports import router as reports_router
 
+from app.core.database import Base, engine
+from app.models import (
+    User,
+    MedicalReport,
+    ReportAnalysis,
+    ChatMessage
+)
+
 
 app = FastAPI(
     title="Medical Report Explainer API",
     version="0.1.0"
 )
+
+Base.metadata.create_all(bind=engine)
 
 app.add_middleware(
     CORSMiddleware,

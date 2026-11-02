@@ -15,6 +15,7 @@ from app.core.database import Base
 if TYPE_CHECKING:
     from app.models.user import User
     from app.models.report_analysis import ReportAnalysis
+    from app.models.chat_message import ChatMessage
 
 
 class MedicalReport(Base):
@@ -60,4 +61,9 @@ class MedicalReport(Base):
     analyses: Mapped[list["ReportAnalysis"]] = relationship(
         back_populates="report",
         cascade="all, delete-orphan"
+    )
+
+    chat_messages: Mapped[list["ChatMessage"]] = relationship(
+    back_populates="report",
+    cascade="all, delete-orphan"
     )
