@@ -1,16 +1,23 @@
 import api from "@/lib/api";
 
+export interface ChatSource {
+  source: string;
+  score: number;
+}
+
 export interface ChatMessage {
   id: number;
   role: "user" | "assistant";
   content: string;
   created_at: string;
+  sources?: ChatSource[];
 }
 
 interface ChatResponse {
   report_id: number;
   user_message: ChatMessage;
   assistant_message: ChatMessage;
+  sources?: ChatSource[];
 }
 
 interface ChatHistoryResponse {
