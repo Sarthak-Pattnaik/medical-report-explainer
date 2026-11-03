@@ -1,7 +1,6 @@
 
 from functools import lru_cache
 
-from sentence_transformers import SentenceTransformer
 from sqlalchemy import text
 
 from app.core.database import engine
@@ -13,6 +12,8 @@ MODEL_NAME = "all-MiniLM-L6-v2"
 @lru_cache(maxsize=1)
 def get_embedding_model():
     """Load the embedding model once and reuse it."""
+    from sentence_transformers import SentenceTransformer
+
     return SentenceTransformer(MODEL_NAME)
 
 
@@ -20,18 +21,6 @@ def search_kb(
     query_text: str,
     top_k: int = 5,
 ) -> list[dict]:
-    """
-    Search the medical knowledge base using cosine similarity.
-
-    Returns:
-        [
-            {
-                "content": str,
-                "source": str,
-                "score": float
-            }
-        ]
-    """
 
     if not query_text or not query_text.strip():
         return []
