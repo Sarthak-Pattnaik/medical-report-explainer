@@ -555,7 +555,7 @@ def chat_with_report(
     try:
         explanation_service = GroqExplanationService()
 
-        answer = explanation_service.chat(
+        answer, sources = explanation_service.chat(
             extracted_text=analysis.extracted_text or "",
             structured_data=analysis.structured_data or {},
             clinical_context=analysis.clinical_context or {},
@@ -626,7 +626,8 @@ def chat_with_report(
             "role": assistant_message.role,
             "content": assistant_message.content,
             "created_at": assistant_message.created_at
-        }
+        },
+        "sources": sources
     }
 
 @router.get("/{report_id}/chat")
