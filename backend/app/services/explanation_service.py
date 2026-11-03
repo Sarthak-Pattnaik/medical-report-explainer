@@ -242,10 +242,9 @@ Return only the JSON object matching the provided schema.
         explanation: dict,
         conversation_history: list[dict],
         user_message: str
-    ) -> str:
+    ) -> tuple[str, list[dict]]:
 
-        # Prepare the medical report context.
-                # Retrieve general medical knowledge relevant to the question.
+        # Retrieve general medical knowledge relevant to the question.
         try:
             kb_results = search_kb(user_message, top_k=4)
         except Exception as error:
@@ -444,4 +443,10 @@ for a qualified healthcare professional.
                 "Groq returned an empty chatbot response"
             )
 
-        return response_content.strip()
+                # Return the sources in a fixed format, independent of the LLM.
+        sources = [
+            {"source": r["source"], "score": round(r["score"], 3)}
+            for r in kb_results
+        ]
+
+        return response_content.strip(), sources
