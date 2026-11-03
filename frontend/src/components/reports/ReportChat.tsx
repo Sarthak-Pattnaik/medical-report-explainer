@@ -101,8 +101,11 @@ export default function ReportChat({ reportId }: ReportChatProps) {
         ...previous.filter(
           (message) => message.id !== temporaryMessage.id
         ),
-        response.user_message,
-        response.assistant_message,
+                response.user_message,
+        {
+          ...response.assistant_message,
+          sources: response.sources ?? [],
+        },
       ]);
     } catch (error) {
       console.error("Failed to send chat message:", error);
@@ -403,7 +406,26 @@ export default function ReportChat({ reportId }: ReportChatProps) {
                       {message.content}
                     </p>
                   )}
+                  {message.role === "assistant" &&
+                    message.sources &&
+                    message.sources.length > 0 && (
+                      <div className="mt-3 border-t border-white/[0.07] pt-3">
+                        <p className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-slate-500">
+                          Sources
+                        </p>
 
+                        <div className="flex flex-wrap gap-2">
+                          {message.sources.map((source) => (
+                            <span
+                              key={source.source}
+                              className="rounded-md border border-emerald-400/20 bg-emerald-400/5 px-2 py-1 text-[11px] text-emerald-300"
+                            >
+                              {source.source}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                    )}
                   <p className="mt-3 text-right text-[10px] text-slate-600">
                     {new Date(message.created_at).toLocaleTimeString(
                       undefined,
