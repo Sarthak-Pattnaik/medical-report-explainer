@@ -543,7 +543,7 @@ def chat_with_report(
         .limit(12)
     ).all()
 
-        # Reverse to restore chronological order.
+# Reverse to restore chronological order.
     conversation_history = [
         {
             "role": message.role,

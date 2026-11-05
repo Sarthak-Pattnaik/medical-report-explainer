@@ -406,8 +406,6 @@ MEDICAL ACCURACY AND SAFETY RULES:
 
 You are an educational assistant, not a substitute
 for a qualified healthcare professional.
-You are an educational assistant, not a substitute
-for a qualified healthcare professional.
 """
 
         # Keep only the most recent conversation messages.
