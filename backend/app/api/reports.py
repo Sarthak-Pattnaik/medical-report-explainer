@@ -35,6 +35,10 @@ from app.services.explanation_service import (
 from app.models.chat_message import ChatMessage
 from app.schemas.chat import ChatRequest
 
+from app.services.report_history_service import (
+    get_other_reports_context
+)
+
 router = APIRouter(
     prefix="/reports",
     tags=["Reports"]
@@ -539,7 +543,7 @@ def chat_with_report(
         .limit(12)
     ).all()
 
-    # Reverse to restore chronological order.
+# Reverse to restore chronological order.
     conversation_history = [
         {
             "role": message.role,
@@ -547,6 +551,13 @@ def chat_with_report(
         }
         for message in reversed(previous_messages)
     ]
+
+    # Retrieve the user's other reports for comparison.
+    other_reports = get_other_reports_context(
+        db=db,
+        user_id=current_user.id,
+        current_report=report,
+    )
 
     # --------------------------------------------------
     # 4. Generate AI response
@@ -561,7 +572,11 @@ def chat_with_report(
             clinical_context=analysis.clinical_context or {},
             explanation=analysis.explanation or {},
             conversation_history=conversation_history,
-            user_message=request.message
+            user_message=request.message,
+            other_reports=other_reports,
+            current_report_uploaded_at=report.created_at.strftime(
+                "%Y-%m-%d %H:%M"
+            )
         )
 
     except Exception:
