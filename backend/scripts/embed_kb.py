@@ -1,14 +1,13 @@
-
-from sentence_transformers import SentenceTransformer
 from sqlalchemy import text
 
 from app.core.database import engine
+from app.services.knowledge_base import (
+    EMBEDDING_DIMENSIONS,
+    embed_text,
+)
 
-MODEL_NAME = "all-MiniLM-L6-v2"
 
 def main():
-    model = SentenceTransformer(MODEL_NAME)
-
     with engine.begin() as connection:
         entries = connection.execute(
             text("""
@@ -34,12 +33,9 @@ def main():
                 if part
             )
 
-            embedding = model.encode(
-                combined_text,
-                normalize_embeddings=True,
-            ).tolist()
+            embedding = embed_text(combined_text)
 
-            if len(embedding) != 384:
+            if len(embedding) != EMBEDDING_DIMENSIONS:
                 raise ValueError("Expected a 384-dimensional embedding")
 
             connection.execute(
