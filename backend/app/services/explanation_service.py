@@ -8,6 +8,8 @@ from groq import Groq
 from app.schemas import structured_data
 from app.schemas.explanation import MedicalExplanation
 from app.services.knowledge_base import search_kb
+from app.services.safety_service import add_safety_notices
+
 # Minimum similarity score for a knowledge base result to be used.
 KB_MIN_SCORE = 0.5
 
@@ -312,6 +314,11 @@ MEDICAL ACCURACY AND SAFETY RULES:
 
 9. Do not prescribe medications, recommend medication
    changes, or provide individualized treatment plans.
+   Never name a specific medicine or class of medicines
+   (such as painkillers, NSAIDs, antibiotics, or
+   supplements), including over-the-counter ones, unless
+   the user's report names it. When treatment comes up, say
+   only that a doctor decides on treatment.
 
 10. Do not claim that an abnormal result establishes
     a particular disease.
@@ -322,7 +329,12 @@ MEDICAL ACCURACY AND SAFETY RULES:
 12. If the user describes potentially serious or
     emergency symptoms, advise them to seek appropriate
     urgent medical attention rather than relying on
-    this chatbot.
+    this chatbot. This also applies when explaining a
+    condition whose symptoms can overlap with an
+    emergency (for example chest pain, breathing
+    difficulty, fainting, or sudden weakness): state that
+    such symptoms need prompt medical assessment, and
+    never suggest that a symptom is harmless.
 
 13. Maintain the context of the current conversation.
     Resolve follow-up questions using previous messages
@@ -384,8 +396,8 @@ MEDICAL ACCURACY AND SAFETY RULES:
     references cover the question, base general explanations
     on them rather than on your own memory.
 
-26. When you use a reference, cite it at the end of the
-    relevant sentence as [Source: <source>].
+26. Do not write source citations in your answer. The
+    sources you used are shown to the user separately.
 
 27. Never take reference ranges or patient-specific values
     from general_knowledge_references or from your own
@@ -471,4 +483,9 @@ for a qualified healthcare professional.
             for r in kb_results
         ]
 
-        return response_content.strip(), sources
+        answer = add_safety_notices(
+            user_message,
+            response_content.strip(),
+        )
+
+        return answer, sources
