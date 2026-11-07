@@ -5,7 +5,6 @@ import os
 from dotenv import load_dotenv
 from groq import Groq
 
-from app.schemas import structured_data
 from app.schemas.explanation import MedicalExplanation
 from app.services.knowledge_base import search_kb
 from app.services.safety_service import add_safety_notices
@@ -280,7 +279,7 @@ Return only the JSON object matching the provided schema.
         # Retrieve general medical knowledge relevant to the question.
         try:
             kb_results = search_kb(user_message, top_k=4)
-        except Exception as error:
+        except Exception:
             logger.exception("Knowledge base search failed")
             kb_results = []
 

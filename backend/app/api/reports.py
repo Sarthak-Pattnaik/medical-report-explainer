@@ -11,8 +11,6 @@ from app.core.database import get_db
 from app.models.medical_report import MedicalReport
 from app.models.user import User
 
-from fastapi.responses import FileResponse
-from mimetypes import guess_type
 from sqlalchemy import select
 from app.models.report_analysis import ReportAnalysis
 from app.services.ocr_service import extract_text
@@ -79,7 +77,7 @@ async def upload_report(
 
     if len(file_content) > MAX_FILE_SIZE:
         raise HTTPException(
-            status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
+            status_code=status.HTTP_413_CONTENT_TOO_LARGE,
             detail="File size must not exceed 10 MB"
         )
 
@@ -540,7 +538,7 @@ def chat_with_report(
         .limit(12)
     ).all()
 
-# Reverse to restore chronological order.
+    # Reverse to restore chronological order.
     conversation_history = [
         {
             "role": message.role,
