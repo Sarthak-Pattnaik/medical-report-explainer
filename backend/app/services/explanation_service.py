@@ -1,5 +1,5 @@
-
 import json
+import logging
 import os
 
 from dotenv import load_dotenv
@@ -10,11 +10,40 @@ from app.schemas.explanation import MedicalExplanation
 from app.services.knowledge_base import search_kb
 from app.services.safety_service import add_safety_notices
 
+logger = logging.getLogger(__name__)
 # Minimum similarity score for a knowledge base result to be used.
 KB_MIN_SCORE = 0.5
 
 load_dotenv()
 
+def _compact_explanation(explanation: dict | None) -> dict:
+    """
+    Keep only the patient-specific parts of the stored explanation
+    for chat. General descriptions repeat the knowledge base and
+    source_text repeats the report, so they are dropped to keep
+    the prompt within Groq's token limit.
+    """
+
+    if not explanation:
+        return {}
+
+    return {
+        "report_summary": explanation.get("report_summary"),
+        "parameter_results": [
+            {
+                "parameter_name": item.get("parameter_name"),
+                "what_your_result_means": item.get(
+                    "what_your_result_means"
+                ),
+            }
+            for item in explanation.get("parameter_explanations", [])
+            if isinstance(item, dict)
+        ],
+        "important_observations": explanation.get(
+            "important_observations", []
+        ),
+        "limitations": explanation.get("limitations", []),
+    }
 
 class GroqExplanationService:
     def __init__(self):
@@ -252,7 +281,7 @@ Return only the JSON object matching the provided schema.
         try:
             kb_results = search_kb(user_message, top_k=4)
         except Exception as error:
-            print("KNOWLEDGE BASE SEARCH FAILED:", error)
+            logger.exception("Knowledge base search failed")
             kb_results = []
 
         # Keep only reasonably relevant matches.
@@ -261,9 +290,9 @@ Return only the JSON object matching the provided schema.
             if result["score"] >= KB_MIN_SCORE
         ]
 
-        print(
-            "KB HITS:",
-            [(r["source"], round(r["score"], 3)) for r in kb_results]
+        logger.info(
+            "KB hits: %s",
+            [(r["source"], round(r["score"], 3)) for r in kb_results],
         )
 
         # Prepare the medical report context.
@@ -271,7 +300,7 @@ Return only the JSON object matching the provided schema.
             "extracted_text": extracted_text[:12000],
             "structured_data": structured_data or {},
             "clinical_context": clinical_context or {},
-            "generated_explanation": explanation or {},
+            "generated_explanation": _compact_explanation(explanation),
             "general_knowledge_references": kb_results,
             "current_report_uploaded_at": current_report_uploaded_at,
             "other_reports": other_reports or []
@@ -462,6 +491,17 @@ for a qualified healthcare professional.
             "role": "user",
             "content": user_message
         })
+
+        logger.info(
+            "Chat prompt size (approx tokens): system=%d, "
+            "context=%s, history=%d",
+            len(system_prompt) // 4,
+            {
+                key: len(json.dumps(value, ensure_ascii=False)) // 4
+                for key, value in report_context.items()
+            },
+            sum(len(m["content"]) for m in messages[2:-1]) // 4,
+        )
 
         completion = self.client.chat.completions.create(
             model=self.model,
