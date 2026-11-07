@@ -1,20 +1,31 @@
-
 from functools import lru_cache
 
+import numpy as np
 from sqlalchemy import text
 
 from app.core.database import engine
 
 
-MODEL_NAME = "all-MiniLM-L6-v2"
+MODEL_NAME = "sentence-transformers/all-MiniLM-L6-v2"
+EMBEDDING_DIMENSIONS = 384
 
 
 @lru_cache(maxsize=1)
 def get_embedding_model():
-    """Load the embedding model once and reuse it."""
-    from sentence_transformers import SentenceTransformer
+    """Load the ONNX embedding model once and reuse it."""
+    from fastembed import TextEmbedding
 
-    return SentenceTransformer(MODEL_NAME)
+    return TextEmbedding(model_name=MODEL_NAME)
+
+
+def embed_text(text_to_embed: str) -> list[float]:
+    """Return a normalized 384-dimensional embedding."""
+    model = get_embedding_model()
+
+    vector = next(model.embed([text_to_embed]))
+    vector = vector / np.linalg.norm(vector)
+
+    return vector.tolist()
 
 
 def search_kb(
@@ -28,14 +39,9 @@ def search_kb(
     if top_k < 1:
         raise ValueError("top_k must be at least 1")
 
-    model = get_embedding_model()
+    query_embedding = embed_text(query_text.strip())
 
-    query_embedding = model.encode(
-        query_text.strip(),
-        normalize_embeddings=True,
-    ).tolist()
-
-    if len(query_embedding) != 384:
+    if len(query_embedding) != EMBEDDING_DIMENSIONS:
         raise ValueError("Expected a 384-dimensional embedding")
 
     with engine.connect() as connection:

@@ -247,8 +247,11 @@ Return only the JSON object matching the provided schema.
     ) -> tuple[str, list[dict]]:
 
         # Retrieve general medical knowledge relevant to the question.
-        # Temporarily disable local embedding retrieval.
-        kb_results = []
+        try:
+            kb_results = search_kb(user_message, top_k=4)
+        except Exception as error:
+            print("KNOWLEDGE BASE SEARCH FAILED:", error)
+            kb_results = []
 
         # Keep only reasonably relevant matches.
         kb_results = [

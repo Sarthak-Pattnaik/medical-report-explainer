@@ -582,7 +582,7 @@ def chat_with_report(
     except Exception:
         db.rollback()
 
-        print("REPORT CHAT GENERATION FAILED")
+        print("REPORT CHAT GENERATION FAILED:", error)
 
         raise HTTPException(
             status_code=status.HTTP_502_BAD_GATEWAY,
