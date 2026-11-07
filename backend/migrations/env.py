@@ -20,9 +20,27 @@ if config.config_file_name is not None:
 # from myapp import mymodel
 # target_metadata = mymodel.Base.metadata
 from app.core.database import Base
-from app.models import User, MedicalReport, ReportAnalysis
+from app.models import User, MedicalReport, ReportAnalysis, ChatMessage
 
 target_metadata = Base.metadata
+
+# Tables that exist in the database but are managed outside the
+# SQLAlchemy models (created directly in Supabase). Autogenerate
+# must never try to drop them.
+EXTERNALLY_MANAGED_TABLES = {"kb_entries"}
+
+
+def include_object(object, name, type_, reflected, compare_to):
+    if type_ == "table" and name in EXTERNALLY_MANAGED_TABLES:
+        return False
+
+    if (
+        type_ == "index"
+        and object.table.name in EXTERNALLY_MANAGED_TABLES
+    ):
+        return False
+
+    return True
 
 # other values from the config, defined by the needs of env.py,
 # can be acquired:
@@ -48,6 +66,7 @@ def run_migrations_offline() -> None:
         target_metadata=target_metadata,
         literal_binds=True,
         dialect_opts={"paramstyle": "named"},
+        include_object=include_object,
     )
 
     with context.begin_transaction():
@@ -69,7 +88,9 @@ def run_migrations_online() -> None:
 
     with connectable.connect() as connection:
         context.configure(
-            connection=connection, target_metadata=target_metadata
+            connection=connection,
+            target_metadata=target_metadata,
+            include_object=include_object,
         )
 
         with context.begin_transaction():
