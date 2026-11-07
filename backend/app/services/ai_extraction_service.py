@@ -3,6 +3,7 @@ from dotenv import load_dotenv
 load_dotenv()
 
 import json
+import logging
 import os
 import re
 import time
@@ -13,6 +14,8 @@ from google.genai import errors
 from app.schemas.structured_data import (
     StructuredMedicalData,
 )
+
+logger = logging.getLogger(__name__)
 
 def validate_extraction_result(
     structured_data: dict,
@@ -95,9 +98,10 @@ class AIExtractionService:
             for attempt in range(self.max_retries + 1):
 
                 try:
-                    print(
-                    f"Trying model: {model_name} "
-                    f"(attempt {attempt + 1})"
+                    logger.info(
+                        "Trying model %s (attempt %d)",
+                        model_name,
+                        attempt + 1,
                     )
 
                     response = (
@@ -112,9 +116,10 @@ class AIExtractionService:
                 except errors.ServerError as error:
                     last_error = error
 
-                    print(
-                    f"Temporary error with "
-                    f"{model_name}: {error}"
+                    logger.warning(
+                        "Temporary error with %s: %s",
+                        model_name,
+                        error,
                     )
 
                     if attempt < self.max_retries:
@@ -124,9 +129,10 @@ class AIExtractionService:
                 except errors.ClientError as error:
                     last_error = error
 
-                    print(
-                    f"Client error with "
-                    f"{model_name}: {error}"
+                    logger.warning(
+                        "Client error with %s: %s",
+                        model_name,
+                        error,
                     )
 
                     # Move to the next model immediately

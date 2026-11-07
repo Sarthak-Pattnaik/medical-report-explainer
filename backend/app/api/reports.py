@@ -1,4 +1,4 @@
-
+import logging
 from pathlib import Path
 from uuid import uuid4
 
@@ -39,6 +39,7 @@ from app.services.report_history_service import (
     get_other_reports_context
 )
 
+logger = logging.getLogger(__name__)
 router = APIRouter(
     prefix="/reports",
     tags=["Reports"]
@@ -165,10 +166,7 @@ async def upload_report(
             )
         )
 
-        print(
-            "SELECTED EXTRACTION METHOD:",
-            extraction_method,
-        )
+        logger.info("Extraction method: %s", extraction_method)
 
         if isinstance(structured_data, dict):
             structured_data[
@@ -188,11 +186,8 @@ async def upload_report(
 
             clinical_context_data = clinical_context.model_dump()
 
-        except Exception as error:
-            print(
-                "CLINICAL CONTEXT EXTRACTION FAILED:",
-            error
-            )
+        except Exception:
+            logger.exception("Clinical context extraction failed")
 
             clinical_context_data = {
                 "medical_history": [],
@@ -222,15 +217,10 @@ async def upload_report(
 
             explanation_data = explanation.model_dump()
 
-            print(
-                "MEDICAL EXPLANATION GENERATED SUCCESSFULLY"
-            )
+            logger.info("Medical explanation generated")
 
-        except Exception as error:
-            print(
-                "MEDICAL EXPLANATION GENERATION FAILED:",
-                error
-            )
+        except Exception:
+            logger.exception("Medical explanation generation failed")
 
             explanation_data = None
 
@@ -254,8 +244,9 @@ async def upload_report(
         db.commit()
         db.refresh(report)
 
-    except Exception as error:
+    except Exception:
         db.rollback()
+        logger.exception("Report processing failed")
 
         # Report was already committed before processing.
         # Keep the Storage file so the report remains accessible.
@@ -266,10 +257,14 @@ async def upload_report(
                 db.commit()
             except Exception:
                 db.rollback()
+                logger.exception("Could not mark report as failed")
 
         raise HTTPException(
-            status_code=500,
-            detail=f"Text extraction failed: {str(error)}"
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=(
+                "We couldn't process this report. Please try again "
+                "or upload a clearer file."
+            ),
         )
 
     return {
@@ -366,10 +361,12 @@ def get_report_file(
             report.file_path
         )
 
-    except Exception as error:
+    except Exception:
+        logger.exception("Could not download report file")
+
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"File could not be retrieved: {str(error)}"
+            detail="The report file could not be retrieved."
         )
 
     extension = Path(report.file_name).suffix.lower()
@@ -582,7 +579,7 @@ def chat_with_report(
     except Exception:
         db.rollback()
 
-        print("REPORT CHAT GENERATION FAILED:", error)
+        logger.exception("Report chat generation failed")
 
         raise HTTPException(
             status_code=status.HTTP_502_BAD_GATEWAY,
@@ -618,6 +615,7 @@ def chat_with_report(
 
     except Exception:
         db.rollback()
+        logger.exception("Could not save chat messages")
 
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -744,6 +742,7 @@ def delete_report_chat(
 
     except Exception:
         db.rollback()
+        logger.exception("Could not delete chat history")
 
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
