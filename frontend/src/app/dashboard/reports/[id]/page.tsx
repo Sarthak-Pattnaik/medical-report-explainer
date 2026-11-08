@@ -215,8 +215,11 @@ export default function ReportDetailsPage() {
 
   if (loading || (isValidReportId && loadingReport)) {
     return (
-      <main className="flex min-h-screen items-center justify-center bg-slate-950 text-white">
-        Loading report...
+      <main className="flex min-h-screen items-center justify-center bg-[#080d18] text-slate-300">
+        <div className="flex items-center gap-3">
+          <div className="h-5 w-5 animate-spin rounded-full border-2 border-emerald-400 border-t-transparent" />
+          <span className="text-sm">Loading report...</span>
+        </div>
       </main>
     );
   }

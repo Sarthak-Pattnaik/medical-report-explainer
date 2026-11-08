@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
+import { X } from "lucide-react";
 import axios from "axios";
 
 import {
@@ -14,6 +15,7 @@ import {
 
 interface ReportChatProps {
   reportId: number;
+  onClose?: () => void;
 }
 
 const suggestedQuestions = [
@@ -22,7 +24,7 @@ const suggestedQuestions = [
   "Which findings should I discuss with my doctor?",
 ];
 
-export default function ReportChat({ reportId }: ReportChatProps) {
+export default function ReportChat({ reportId, onClose }: ReportChatProps) {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(true);
@@ -106,7 +108,7 @@ export default function ReportChat({ reportId }: ReportChatProps) {
         ...previous.filter(
           (message) => message.id !== temporaryMessage.id
         ),
-                response.user_message,
+        response.user_message,
         {
           ...response.assistant_message,
           sources: response.sources ?? [],
@@ -177,63 +179,72 @@ export default function ReportChat({ reportId }: ReportChatProps) {
   };
 
   return (
-    <section className="mt-8 overflow-hidden rounded-2xl border border-emerald-400/15 bg-slate-900/60">
-
+    <section className="flex h-full flex-col">
       {/* Header */}
-      <div className="flex items-center justify-between gap-4 border-b border-white/6 p-5 sm:p-6">
-        <div className="flex items-center gap-3">
-          <div className="flex h-11 w-11 items-center justify-center rounded-xl border border-emerald-400/20 bg-emerald-400/10 text-emerald-300">
-            <svg
-              viewBox="0 0 24 24"
-              fill="none"
-              className="h-6 w-6"
-              stroke="currentColor"
-              strokeWidth="1.6"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            >
-              <path d="M21 11.5a8.4 8.4 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.4 8.4 0 0 1-3.8-.9L3 21l1.9-5.7a8.4 8.4 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.4 8.4 0 0 1 3.8-.9h.5a8.5 8.5 0 0 1 8 8v.5Z" />
-            </svg>
-          </div>
-
-          <div>
-            <h2 className="font-semibold text-white">
-              Ask About Your Report
-            </h2>
-
-            <p className="mt-1 text-xs text-slate-500">
-              MediClarity AI Assistant
-            </p>
-          </div>
+      <div className="flex shrink-0 items-center justify-between gap-4 border-b border-white/6 p-5 sm:p-6">        <div className="flex items-center gap-3">
+        <div className="flex h-11 w-11 items-center justify-center rounded-xl border border-emerald-400/20 bg-emerald-400/10 text-emerald-300">
+          <svg
+            viewBox="0 0 24 24"
+            fill="none"
+            className="h-6 w-6"
+            stroke="currentColor"
+            strokeWidth="1.6"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          >
+            <path d="M21 11.5a8.4 8.4 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.4 8.4 0 0 1-3.8-.9L3 21l1.9-5.7a8.4 8.4 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.4 8.4 0 0 1 3.8-.9h.5a8.5 8.5 0 0 1 8 8v.5Z" />
+          </svg>
         </div>
 
-        <button
-          type="button"
-          onClick={handleDeleteChat}
-          disabled={
-            messages.length === 0 ||
-            isDeleting ||
-            isSending ||
-            isLoading
-          }
-          className="flex items-center gap-2 rounded-lg border border-white/10 px-3 py-2 text-xs font-medium text-slate-400 transition hover:border-red-400/30 hover:text-red-300 disabled:cursor-not-allowed disabled:opacity-40"
-          title="Clear conversation"
-        >
-          {isDeleting ? (
-            "Clearing..."
-          ) : (
-            <>
-              <span aria-hidden="true">⌫</span>
-              <span className="hidden sm:inline">Clear chat</span>
-            </>
+        <div>
+          <h2 className="font-semibold text-white">
+            MediClarity AI Assistant
+          </h2>
+
+          <p className="mt-1 text-xs text-slate-500">
+            Ask questions about your report
+          </p>
+        </div>
+      </div>
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={handleDeleteChat}
+            disabled={
+              messages.length === 0 ||
+              isDeleting ||
+              isSending ||
+              isLoading
+            }
+            className="flex items-center gap-2 rounded-lg border border-white/10 px-3 py-2 text-xs font-medium text-slate-400 transition hover:border-red-400/30 hover:text-red-300 disabled:cursor-not-allowed disabled:opacity-40"
+            title="Clear conversation"
+          >
+            {isDeleting ? (
+              "Clearing..."
+            ) : (
+              <>
+                <span aria-hidden="true">⌫</span>
+                <span className="hidden sm:inline">Clear chat</span>
+              </>
+            )}
+          </button>
+
+          {onClose && (
+            <button
+              type="button"
+              onClick={onClose}
+              aria-label="Close chat"
+              className="rounded-lg p-2 text-slate-400 transition hover:bg-white/10 hover:text-white"
+            >
+              <X size={20} />
+            </button>
           )}
-        </button>
+        </div>
       </div>
 
       {/* Chat messages */}
       <div
-        className="h-[480px] overflow-y-auto p-4 sm:p-6"
-        aria-live="polite"
+        className="min-h-0 flex-1 overflow-y-auto p-4 sm:p-6" aria-live="polite"
         aria-label="Chat conversation"
       >
         {isLoading ? (
@@ -286,21 +297,21 @@ export default function ReportChat({ reportId }: ReportChatProps) {
               <div
                 key={message.id}
                 className={`mb-5 flex ${message.role === "user"
-                    ? "justify-end"
-                    : "justify-start"
+                  ? "justify-end"
+                  : "justify-start"
                   }`}
               >
                 <div
                   className={`max-w-[90%] min-w-0 rounded-2xl p-4 sm:max-w-[85%] ${message.role === "user"
-                      ? "rounded-br-sm border border-emerald-400/20 bg-emerald-400/10"
-                      : "rounded-bl-sm border border-white/[0.07] bg-[#0b1120]"
+                    ? "rounded-br-sm border border-emerald-400/20 bg-emerald-400/10"
+                    : "rounded-bl-sm border border-white/[0.07] bg-[#0b1120]"
                     }`}
                 >
                   <div className="mb-2 flex items-center gap-2">
                     <span
                       className={`text-xs font-semibold ${message.role === "user"
-                          ? "text-emerald-300"
-                          : "text-slate-300"
+                        ? "text-emerald-300"
+                        : "text-slate-300"
                         }`}
                     >
                       {message.role === "user"

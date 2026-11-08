@@ -599,7 +599,7 @@ export default function DashboardPage() {
             </div>
 
             <p className="shrink-0 text-xs text-slate-600">
-              Medical Report Explainer
+              MediClarity
             </p>
           </div>
         </footer>
