@@ -3,7 +3,6 @@
 
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
-import axios from "axios";
 
 import { useAuth } from "@/context/AuthContext";
 import MedicalExplanationSection from "@/components/reports/MedicalExplanationSection";
@@ -16,18 +15,9 @@ import {
   type ReportDetails,
   type ReportAnalysis,
   type MedicalExplanation,
-  type ClinicalContextExplanation,
 } from "@/services/reportService";
 
 import ReportChatWidget from "@/components/reports/ReportChatWidget";
-
-function formatParameterName(parameter: string): string {
-  return parameter
-    .replace(/_/g, " ")
-    .replace(/\b\w/g, (character) =>
-      character.toUpperCase()
-    );
-}
 
 export default function ReportDetailsPage() {
   const params = useParams();
@@ -43,10 +33,10 @@ export default function ReportDetailsPage() {
   const [fileError, setFileError] = useState("");
 
   const [analysis, setAnalysis] = useState<ReportAnalysis | null>(null);
-  const [isLoadingAnalysis, setIsLoadingAnalysis] = useState(true);
   const [analysisError, setAnalysisError] = useState("");
 
   const reportId = Number(params.id);
+  const isValidReportId = Number.isInteger(reportId) && reportId > 0;
 
   const [explanation, setExplanation] =
     useState<MedicalExplanation | null>(null);
@@ -103,7 +93,6 @@ export default function ReportDetailsPage() {
 
     const fetchAnalysis = async () => {
       try {
-        setIsLoadingAnalysis(true);
         setAnalysisError("");
         setAnalysis(null);
 
@@ -118,8 +107,6 @@ export default function ReportDetailsPage() {
         console.error("Failed to fetch analysis:", error);
 
         setAnalysisError("Unable to load extracted text.");
-      } finally {
-        setIsLoadingAnalysis(false);
       }
     };
 
@@ -172,29 +159,33 @@ export default function ReportDetailsPage() {
   }, [loading, isAuthenticated, router]);
 
   useEffect(() => {
-    if (isAuthenticated && Number.isInteger(reportId) && reportId > 0) {
-      loadReport();
-    } else if (isAuthenticated) {
-      setError("Invalid report ID.");
-      setLoadingReport(false);
+    if (!isAuthenticated || !isValidReportId) {
+      return;
     }
-  }, [isAuthenticated, reportId]);
 
-  async function loadReport() {
-    try {
-      setLoadingReport(true);
-      setError("");
+    let ignore = false;
 
-      const data = await getReportDetails(reportId);
-      setReport(data);
-    } catch {
-      setError("Unable to load this report.");
-    } finally {
-      setLoadingReport(false);
-    }
-  }
+    getReportDetails(reportId)
+      .then((data) => {
+        if (!ignore) setReport(data);
+      })
+      .catch(() => {
+        if (!ignore) setError("Unable to load this report.");
+      })
+      .finally(() => {
+        if (!ignore) setLoadingReport(false);
+      });
 
-  if (loading || loadingReport) {
+    return () => {
+      ignore = true;
+    };
+  }, [isAuthenticated, isValidReportId, reportId]);
+
+  // An invalid ID is known straight from the URL, so it is computed
+  // here instead of being stored in state from inside an effect.
+  const pageError = isValidReportId ? error : "Invalid report ID.";
+
+  if (loading || (isValidReportId && loadingReport)) {
     return (
       <main className="flex min-h-screen items-center justify-center bg-slate-950 text-white">
         Loading report...
@@ -256,9 +247,9 @@ export default function ReportDetailsPage() {
           </span>
         </div>
 
-        {error ? (
+        {pageError ? (
           <div className="rounded-2xl border border-red-500/20 bg-red-500/6 p-6 text-sm text-red-300">
-            {error}
+            {pageError}
           </div>
         ) : report ? (
           <>
@@ -392,6 +383,7 @@ export default function ReportDetailsPage() {
                       />
                     ) : (
                       <div className="flex max-h-200 min-h-64 items-center justify-center overflow-auto p-4 sm:p-8">
+                        {/* eslint-disable-next-line @next/next/no-img-element -- blob URL preview; next/image cannot optimize it */}
                         <img
                           src={fileUrl}
                           alt="Uploaded medical report"
@@ -741,7 +733,6 @@ export default function ReportDetailsPage() {
 
 
               <MedicalExplanationSection
-                reportId={reportId}
                 explanation={explanation}
                 loading={isLoadingExplanation}
                 error={explanationError}

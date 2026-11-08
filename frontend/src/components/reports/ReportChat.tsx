@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import axios from "axios";
@@ -31,6 +31,9 @@ export default function ReportChat({ reportId }: ReportChatProps) {
   const [error, setError] = useState("");
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  // Temporary IDs for messages shown before the server saves them.
+  // Negative numbers can never clash with real database IDs.
+  const nextTemporaryId = useRef(-1);
 
   // Scroll to the latest message.
   const scrollToBottom = () => {
@@ -40,26 +43,28 @@ export default function ReportChat({ reportId }: ReportChatProps) {
   };
 
   // Retrieve previous conversation.
-  const loadMessages = useCallback(async () => {
-    try {
-      setIsLoading(true);
-      setError("");
-
-      const response = await getChatHistory(reportId);
-
-      setMessages(response.messages);
-    } catch (error) {
-      console.error("Failed to load chat history:", error);
-
-      setError("Unable to load your previous conversation.");
-    } finally {
-      setIsLoading(false);
-    }
-  }, [reportId]);
-
   useEffect(() => {
-    loadMessages();
-  }, [loadMessages]);
+    let ignore = false;
+
+    getChatHistory(reportId)
+      .then((response) => {
+        if (!ignore) setMessages(response.messages);
+      })
+      .catch((error) => {
+        console.error("Failed to load chat history:", error);
+
+        if (!ignore) {
+          setError("Unable to load your previous conversation.");
+        }
+      })
+      .finally(() => {
+        if (!ignore) setIsLoading(false);
+      });
+
+    return () => {
+      ignore = true;
+    };
+  }, [reportId]);
 
   useEffect(() => {
     scrollToBottom();
@@ -79,7 +84,7 @@ export default function ReportChat({ reportId }: ReportChatProps) {
 
     // Optimistically display the user's message.
     const temporaryMessage: ChatMessage = {
-      id: Date.now(),
+      id: nextTemporaryId.current--,
       role: "user",
       content: trimmedMessage,
       created_at: new Date().toISOString(),

@@ -7,7 +7,6 @@ import type {
 } from "@/services/reportService";
 
 interface MedicalExplanationSectionProps {
-  reportId: number;
   explanation: MedicalExplanation | null;
   loading: boolean;
   error: string;
@@ -125,7 +124,6 @@ function ContextCard({
 }
 
 export default function MedicalExplanationSection({
-  reportId,
   explanation,
   loading,
   error,
