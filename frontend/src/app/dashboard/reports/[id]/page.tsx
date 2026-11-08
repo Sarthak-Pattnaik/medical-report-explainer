@@ -215,7 +215,7 @@ export default function ReportDetailsPage() {
 
   if (loading || (isValidReportId && loadingReport)) {
     return (
-      <main className="flex min-h-screen items-center justify-center bg-[#080d18] text-slate-300">
+      <main className="flex min-h-screen items-center justify-center bg-app text-slate-300">
         <div className="flex items-center gap-3">
           <div className="h-5 w-5 animate-spin rounded-full border-2 border-emerald-400 border-t-transparent" />
           <span className="text-sm">Loading report...</span>
@@ -230,9 +230,9 @@ export default function ReportDetailsPage() {
 
 
   return (
-    <main className="min-h-screen bg-[#080d18] text-slate-100">
+    <main className="min-h-screen bg-app text-slate-100">
       {/* Top navigation */}
-      <nav className="sticky top-0 z-20 border-b border-white/6 bg-[#080d18]/90 backdrop-blur-xl">
+      <nav className="sticky top-0 z-20 border-b border-white/6 bg-app/90 backdrop-blur-xl">
         <div className="mx-auto flex max-w-7xl items-center justify-between px-5 py-4 sm:px-8">
           <button
             onClick={() => router.push("/dashboard")}
@@ -279,7 +279,7 @@ export default function ReportDetailsPage() {
         </div>
 
         {pageError ? (
-          <div className="rounded-2xl border border-red-500/20 bg-red-500/6 p-6 text-sm text-red-300">
+          <div className="rounded-2xl border border-red-400/20 bg-red-400/6 p-6 text-sm text-red-300">
             {pageError}
           </div>
         ) : report ? (
@@ -344,7 +344,7 @@ export default function ReportDetailsPage() {
                   <button
                     onClick={handlePreviewFile}
                     disabled={isLoadingFile}
-                    className="flex items-center justify-center gap-2 rounded-xl bg-emerald-400 px-5 py-3 text-sm font-semibold text-slate-950 transition hover:bg-emerald-300 disabled:cursor-not-allowed disabled:opacity-50"
+                    className="btn-primary mt-6"
                   >
                     {isLoadingFile ? (
                       <>
@@ -405,7 +405,7 @@ export default function ReportDetailsPage() {
                     </a>
                   </div>
 
-                  <div className="overflow-hidden rounded-2xl border border-white/8 bg-[#080d18]">
+                  <div className="overflow-hidden rounded-2xl border border-white/8 bg-app">
                     {report.file_name.toLowerCase().endsWith(".pdf") ? (
                       <iframe
                         src={fileUrl}
@@ -482,7 +482,7 @@ export default function ReportDetailsPage() {
                   </div>
                 ) : (
 
-                  <div className="mt-4 overflow-hidden rounded-xl border border-white/[0.07] bg-[#0b1120]">
+                  <div className="mt-4 overflow-hidden rounded-xl border border-white/[0.07] bg-panel">
                     {/* Text container header */}
                     <div className="flex items-center justify-between border-b border-white/6 px-5 py-3">
                       <span className="text-xs font-medium text-slate-400">
@@ -609,7 +609,7 @@ export default function ReportDetailsPage() {
                                         View source text
                                       </summary>
 
-                                      <p className="mt-2 whitespace-normal break-words rounded-lg border border-white/[0.06] bg-[#080d18] p-3 text-xs leading-5 text-slate-400">
+                                      <p className="mt-2 whitespace-normal break-words rounded-lg border border-white/[0.06] bg-app p-3 text-xs leading-5 text-slate-400">
                                         {parameter.source_text}
                                       </p>
                                     </details>

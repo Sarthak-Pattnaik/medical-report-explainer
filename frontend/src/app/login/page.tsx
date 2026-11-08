@@ -60,7 +60,7 @@ export default function LoginPage() {
   }
 
   return (
-    <main className="relative flex min-h-screen items-center justify-center overflow-hidden bg-[#080d18] px-5 py-10 text-slate-100 sm:px-8">
+    <main className="relative flex min-h-screen items-center justify-center overflow-hidden bg-app px-5 py-10 text-slate-100 sm:px-8">
       {/* Background decorations */}
       <div className="pointer-events-none absolute inset-0 overflow-hidden">
         <div className="absolute -left-40 -top-40 h-96 w-96 rounded-full bg-emerald-500/[0.07] blur-[120px]" />
@@ -152,7 +152,7 @@ export default function LoginPage() {
                   onChange={(event) =>
                     setEmail(event.target.value)
                   }
-                  className="w-full rounded-xl border border-white/8 bg-[#080d18] py-3.5 pl-12 pr-4 text-sm text-white outline-none transition placeholder:text-slate-600 focus:border-emerald-400/50 focus:ring-2 focus:ring-emerald-400/10"
+                  className="w-full rounded-xl border border-white/8 bg-app py-3.5 pl-12 pr-4 text-sm text-white outline-none transition placeholder:text-slate-600 focus:border-emerald-400/50 focus:ring-2 focus:ring-emerald-400/10"
                   placeholder="you@example.com"
                 />
               </div>
@@ -200,7 +200,7 @@ export default function LoginPage() {
                   onChange={(event) =>
                     setPassword(event.target.value)
                   }
-                  className="w-full rounded-xl border border-white/8 bg-[#080d18] py-3.5 pl-12 pr-14 text-sm text-white outline-none transition placeholder:text-slate-600 focus:border-emerald-400/50 focus:ring-2 focus:ring-emerald-400/10"
+                  className="w-full rounded-xl border border-white/8 bg-app py-3.5 pl-12 pr-14 text-sm text-white outline-none transition placeholder:text-slate-600 focus:border-emerald-400/50 focus:ring-2 focus:ring-emerald-400/10"
                   placeholder="Enter your password"
                 />
 
@@ -245,7 +245,7 @@ export default function LoginPage() {
             <button
               type="submit"
               disabled={loading}
-              className="flex w-full items-center justify-center gap-2 rounded-xl bg-emerald-400 px-5 py-3.5 text-sm font-semibold text-slate-950 shadow-lg shadow-emerald-500/8 transition hover:bg-emerald-300 disabled:cursor-not-allowed disabled:opacity-50"
+              className="btn-primary w-full py-3.5 shadow-lg shadow-emerald-500/8"
             >
               {loading ? (
                 <>

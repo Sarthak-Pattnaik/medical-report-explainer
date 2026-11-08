@@ -35,7 +35,7 @@ export default function ReportChatWidget({
             role="dialog"
             aria-modal="true"
             aria-label="MediClarity AI Assistant"
-            className="flex h-[min(780px,88vh)] w-full max-w-[640px] flex-col overflow-hidden rounded-2xl border border-white/10 bg-[#0b1120] shadow-2xl"
+            className="flex h-[min(780px,88vh)] w-full max-w-[640px] flex-col overflow-hidden rounded-2xl border border-white/10 bg-panel shadow-2xl"
             onClick={(e) => e.stopPropagation()}
           >
             <ReportChat

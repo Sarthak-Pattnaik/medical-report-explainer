@@ -181,7 +181,7 @@ export default function DashboardPage() {
       normalized === "failed" ||
       normalized === "error"
     ) {
-      return "border-red-500/20 bg-red-500/10 text-red-400";
+      return "border-red-400/20 bg-red-400/10 text-red-400";
     }
 
     return "border-amber-500/20 bg-amber-500/10 text-amber-400";
@@ -189,7 +189,7 @@ export default function DashboardPage() {
 
   if (loading) {
     return (
-      <main className="flex min-h-screen items-center justify-center bg-[#080d18] text-slate-300">
+      <main className="flex min-h-screen items-center justify-center bg-app text-slate-300">
         <div className="flex items-center gap-3">
           <div className="h-5 w-5 animate-spin rounded-full border-2 border-emerald-400 border-t-transparent" />
           <span className="text-sm">Loading your dashboard...</span>
@@ -203,9 +203,9 @@ export default function DashboardPage() {
   }
 
   return (
-    <main className="min-h-screen bg-[#080d18] text-slate-100">
+    <main className="min-h-screen bg-app text-slate-100">
       {/* Top navigation */}
-      <nav className="sticky top-0 z-20 border-b border-white/6 bg-[#080d18]/90 backdrop-blur-xl">
+      <nav className="sticky top-0 z-20 border-b border-white/6 bg-app/90 backdrop-blur-xl">
         <div className="mx-auto flex max-w-7xl items-center justify-between px-5 py-4 sm:px-8">
           <div className="flex items-center gap-3">
             <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-emerald-400 text-lg font-bold text-slate-950">
@@ -341,7 +341,7 @@ export default function DashboardPage() {
               </div>
             </div>
 
-            <div className="rounded-2xl border border-white/8 bg-[#080d18]/70 p-5 sm:p-6">
+            <div className="rounded-2xl border border-white/8 bg-app/70 p-5 sm:p-6">
               <input
                 ref={fileInputRef}
                 type="file"
@@ -401,7 +401,7 @@ export default function DashboardPage() {
               <button
                 onClick={handleUpload}
                 disabled={!selectedFile || uploading}
-                className="mt-4 flex w-full items-center justify-center gap-2 rounded-xl bg-emerald-400 px-5 py-3.5 text-sm font-semibold text-slate-950 transition hover:bg-emerald-300 disabled:cursor-not-allowed disabled:opacity-40"
+                className="btn-primary mt-4 w-full py-3.5"
               >
                 {uploading ? (
                   <>
@@ -516,7 +516,7 @@ export default function DashboardPage() {
                     block: "center",
                   })
                 }
-                className="mt-6 rounded-xl bg-emerald-400 px-5 py-3 text-sm font-semibold text-slate-950 transition hover:bg-emerald-300"
+                className="btn-primary mt-6"
               >
                 Upload your first report
               </button>
