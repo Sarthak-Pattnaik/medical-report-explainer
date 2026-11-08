@@ -256,6 +256,9 @@ Return only the JSON object matching the provided schema.
                 }
             },
             temperature=0.2,
+            # Reasoning tokens share this budget. Low effort leaves
+            # room for the full JSON explanation.
+            reasoning_effort="low",
             max_completion_tokens=4500
         )
 
