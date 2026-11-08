@@ -1,646 +1,430 @@
-
 # MediClarity — Medical Report Explainer
 
 **Understand your medical reports in simple, everyday language.**
 
-MediClarity is an AI-powered medical report explanation platform that helps users understand laboratory reports and extracted medical parameters through structured explanations, clinical context, and clear summaries.
+MediClarity turns lab reports into clear, plain-language explanations. Upload a PDF or image of a report, and MediClarity extracts the text, pulls out each test result, explains what it means, and lets you ask follow-up questions in a chat that is grounded in your own report and a curated medical knowledge base.
 
-The application allows users to upload medical reports, extract their contents using OCR, view structured test results, and generate AI-assisted explanations while preserving the original report information.
+It is an **educational tool**, not a diagnostic one: it explains what a report says, cites its sources, and never invents values or reference ranges.
 
-> **Live Demo:** [MediClarity](https://medical-report-explainer-lake.vercel.app/)
-
-> **Backend API:** [FastAPI Server](https://medical-report-explainer-backend.onrender.com/docs)
-
-> **API Documentation:** [Swagger UI](https://medical-report-explainer-backend.onrender.com/docs)
+> **Live app:** [medical-report-explainer-lake.vercel.app](https://medical-report-explainer-lake.vercel.app/)
+>
+> **API docs (Swagger):** [medical-report-explainer-backend.onrender.com/docs](https://medical-report-explainer-backend.onrender.com/docs)
 
 ---
 
 ## Table of Contents
 
-- [Overview](#overview)
 - [Features](#features)
-- [Application Screenshots](#application-screenshots)
+- [Screenshots](#screenshots)
 - [Technology Stack](#technology-stack)
 - [System Architecture](#system-architecture)
 - [How It Works](#how-it-works)
+- [Safety Design](#safety-design)
 - [Project Structure](#project-structure)
 - [Getting Started](#getting-started)
 - [Environment Variables](#environment-variables)
-- [Running the Application](#running-the-application)
+- [Database and Migrations](#database-and-migrations)
+- [Utility Scripts](#utility-scripts)
+- [Testing and CI](#testing-and-ci)
 - [API Endpoints](#api-endpoints)
 - [Deployment](#deployment)
+- [Known Limitations](#known-limitations)
 - [Medical Disclaimer](#medical-disclaimer)
-- [Future Improvements](#future-improvements)
-- [Author](#author)
-
----
-
-## Overview
-
-Medical reports often contain technical terminology, laboratory values, reference ranges, and clinical abbreviations that can be difficult for non-medical users to understand.
-
-MediClarity aims to make these reports more accessible by combining Optical Character Recognition (OCR), structured data extraction, and Large Language Models (LLMs).
-
-Users can upload a medical report and receive:
-
-- Extracted medical text and structured parameters.
-- Test-result explanations in plain language.
-- Explanations of what individual parameters measure.
-- Contextual information about medical terminology.
-- A summary of the report and important observations.
-- Limitations and uncertainty information where appropriate.
-
-MediClarity is designed as an educational tool to improve health literacy, not as a replacement for professional medical advice.
+- [Team](#team)
 
 ---
 
 ## Features
 
-### 1. Secure User Authentication
+### Report processing
+- **Upload** PDF, JPG, JPEG or PNG reports (up to 10 MB), stored privately in Supabase Storage.
+- **Text extraction**: PyMuPDF for text-based PDFs, Tesseract OCR for scanned PDFs and images.
+- **Structured extraction** of every test into name, value, unit, reference range, flag and source text, with a fallback chain: **Groq → Google Gemini → rule-based parser**.
+- **Clinical context** extraction (history, medications, remarks) from the report text.
 
-- User registration and login.
-- Authenticated access to protected resources.
-- User-specific report management.
-- Backend authorization and ownership validation.
+### Plain-language explanations
+- Report summary, what each test measures, what *your* result means, why it matters, important observations and limitations.
+- Reference ranges and flags are taken **only from the report**, never invented.
+- **Retry button**: if an explanation fails to generate (e.g. an AI provider error), users can generate it again from the report page.
 
-### 2. Medical Report Upload
+### AI chat assistant
+- Ask follow-up questions about a report in a chat window.
+- **Retrieval-augmented (RAG)**: each question is matched against a curated medical knowledge base (MedlinePlus-based entries) using vector search; the answer is grounded in the retrieved entries.
+- **Source tags** under each answer show which knowledge base entries were used.
+- **Cross-report comparison**: ask "How has my hemoglobin changed since my last report?" — the chat compares values across your own reports, labelled by upload date in your local timezone.
+- Conversation history is saved per report and can be cleared.
 
-- Upload medical reports in supported PDF and image formats.
-- Store original reports in private Supabase Storage.
-- Associate uploaded reports with the authenticated user.
-- Retrieve and download original reports securely.
-
-### 3. OCR and Text Extraction
-
-- Extract text from PDF documents using PyMuPDF.
-- Extract text from image-based reports using Tesseract OCR.
-- Process scanned reports and image uploads.
-- Preserve extracted text for review and subsequent analysis.
-
-### 4. Structured Medical Data Extraction
-
-The application extracts available medical parameters into structured fields, including:
-
-| Field | Description |
-|---|---|
-| Parameter | Name of the medical test or measurement |
-| Value | Extracted numeric value, when available |
-| Unit | Measurement unit |
-| Reference Range | Reference range as provided by the report |
-| Flag | Extracted status such as low, high, normal, or critical, when available |
-| Confidence | Confidence level associated with extraction |
-| Source Text | Original text supporting the extracted parameter |
-
-The application is designed to retain the source information and avoid silently inventing missing reference ranges or values.
-
-### 5. AI-Powered Medical Explanations
-
-MediClarity uses Large Language Models to generate structured, user-friendly explanations.
-
-The explanation includes:
-
-- Report summary.
-- Explanation of individual parameters.
-- What each test measures.
-- What the reported result means in the context of the available information.
-- Why the parameter may matter.
-- Clinical context explanations, when available.
-- Important observations and limitations.
-
-### 6. Multi-Provider AI Fallback
-
-The backend uses a fallback strategy for AI-based extraction:
-
-1. Groq
-2. Google Gemini
-3. Rule-based extraction fallback
-
-This approach allows the application to attempt alternative extraction methods when a preferred AI provider is unavailable or unsuccessful.
-
-### 7. Report Management and Explanation Retrieval
-
-- View previously uploaded reports.
-- Access extracted text and structured results.
-- Retrieve saved explanations.
-- Download the original uploaded report.
-- Handle reports without available explanations through an appropriate empty state.
-
-### 8. Responsive User Interface
-
-- Dark-themed interface with emerald accents.
-- Dashboard for accessing uploaded reports.
-- Dedicated report details and explanation views.
-- Loading, error, and empty states for key operations.
+### Accounts and security
+- Registration and login with JWT authentication and Argon2 password hashing.
+- Every report, file, explanation and chat is scoped to its owner on the backend.
 
 ---
 
-## Application Screenshots
-
+## Screenshots
 
 | Dashboard | Report Details |
 |---|---|
-| ![MediClarity Dashboard](screenshots/dashboard.png) | ![Report Details](screenshots/report-details.png) |
+| ![Dashboard](screenshots/dashboard.png) | ![Report details](screenshots/report-details.png) |
 
-| Medical Explanation | Authentication |
+| Medical Explanation | AI Chat Assistant |
 |---|---|
-| ![Medical Explanation](screenshots/explanation.png) | ![Login Page](screenshots/login.png) |
+| ![Medical explanation](screenshots/explanation.png) | ![AI chat assistant](screenshots/chat.png) |
 
+| Login |
+|---|
+| ![Login page](screenshots/login.png) |
 
 ---
 
 ## Technology Stack
 
 ### Frontend
-
 | Technology | Purpose |
 |---|---|
-| Next.js (App Router) | Frontend framework |
-| React | User interface |
+| Next.js 16 (App Router) + React | User interface |
 | TypeScript | Type safety |
-| Tailwind CSS | Styling and responsive design |
-| Axios | HTTP requests to the backend |
-| Lucide React | UI icons |
+| Tailwind CSS v4 | Styling, with shared design tokens in `globals.css` |
+| Axios | API requests |
+| React Markdown | Rendering chat answers |
+| Lucide React | Icons |
 
 ### Backend
-
 | Technology | Purpose |
 |---|---|
-| Python | Backend programming language |
-| FastAPI | REST API framework |
-| SQLAlchemy | Database ORM |
-| Pydantic | Request validation and structured data models |
-| PyMuPDF | PDF text extraction |
-| Tesseract OCR | Image text recognition |
-| Pillow | Image processing |
-| Groq API | LLM-based extraction and explanation |
-| Google Gemini API | Alternative AI provider |
+| Python 3.11 + FastAPI | REST API |
+| SQLAlchemy + Alembic | ORM and database migrations |
+| Pydantic / pydantic-settings | Validation, structured AI output, configuration |
+| PyMuPDF, Tesseract OCR, Pillow | Text extraction |
+| Groq (`openai/gpt-oss-20b`) | Extraction, explanations and chat |
+| Google Gemini | Fallback extraction provider |
+| FastEmbed (ONNX) + `all-MiniLM-L6-v2` | Text embeddings for knowledge base search |
+| pytest | Automated tests |
 
-### Database and Cloud Services
-
+### Data and infrastructure
 | Technology | Purpose |
 |---|---|
-| Supabase PostgreSQL | Relational database |
-| Supabase Storage | Private medical report storage |
-| Render | Backend deployment |
-| Vercel | Frontend deployment |
-| Git and GitHub | Version control and source code hosting |
+| Supabase PostgreSQL + pgvector | Database and vector search |
+| Supabase Storage | Private report files |
+| Render | Backend hosting |
+| Vercel | Frontend hosting |
+| GitHub Actions | CI on every pull request |
 
 ---
 
 ## System Architecture
 
-MediClarity follows a client-server architecture.
-
 ```mermaid
 flowchart TD
-    A[User] --> B[Next.js Frontend]
-    B --> C[FastAPI Backend]
+    U[User] --> FE[Next.js frontend]
+    FE --> API[FastAPI backend]
 
-    C --> D[Authentication and Authorization]
-    C --> E[Supabase PostgreSQL]
-    C --> F[Supabase Private Storage]
+    API --> AUTH[JWT auth + ownership checks]
+    API --> DB[(Supabase PostgreSQL)]
+    API --> ST[(Supabase Storage)]
 
-    C --> G[PDF Text Extraction]
-    C --> H[Tesseract OCR]
+    subgraph Upload pipeline
+        API --> OCR[PyMuPDF / Tesseract OCR]
+        OCR --> EXT[Structured extraction<br/>Groq → Gemini → rule-based]
+        EXT --> CTX[Clinical context]
+        CTX --> EXP[Explanation generation]
+        KB1[Knowledge base search] --> EXP
+    end
 
-    G --> I[Extracted Medical Text]
-    H --> I
+    subgraph Chat pipeline
+        API --> Q[User question]
+        Q --> KB2[Knowledge base search<br/>FastEmbed + pgvector]
+        Q --> HIST[User's other reports]
+        KB2 --> LLM[Groq answer]
+        HIST --> LLM
+        LLM --> SAFE[Safety notices]
+    end
 
-    I --> J[AI-Based Structured Extraction]
-    J --> K[Groq]
-    J --> L[Google Gemini]
-    J --> M[Rule-Based Fallback]
-
-    K --> N[Structured Medical Parameters]
-    L --> N
-    M --> N
-
-    N --> O[AI Explanation Generation]
-    O --> P[Saved Medical Explanation]
-    P --> E
-
-    E --> C
-    C --> B
-    B --> Q[Report Dashboard and Explanation]
+    EXP --> DB
+    SAFE --> DB
+    DB --> API
+    API --> FE
 ```
 
-### Architecture Components
-
-- **Frontend:** Provides the user interface for authentication, uploading reports, viewing results, and retrieving explanations.
-- **Backend:** Handles authentication, authorization, report processing, OCR, AI integration, and API responses.
-- **Database:** Stores application records, user-associated reports, extracted data, and generated explanations.
-- **Object Storage:** Stores original medical report files in a private bucket.
-- **AI Services:** Assist with structured extraction and generation of educational explanations.
-
-The backend is responsible for communicating with Supabase and external AI providers. Sensitive service credentials are kept on the server and are not exposed to the frontend.
+- **Credentials stay on the server.** The frontend only knows the API URL; database, storage and AI keys live in the backend environment.
+- **Knowledge base search** embeds the question with `all-MiniLM-L6-v2` (via FastEmbed / ONNX Runtime) and runs a cosine-similarity search in pgvector. Results below a similarity of 0.5 are discarded.
 
 ---
 
 ## How It Works
 
-### Step 1: User Authentication
+### Uploading a report
+1. The file is validated (type, size) and stored in Supabase Storage.
+2. Text is extracted with PyMuPDF (PDFs) or Tesseract (images and scanned PDFs).
+3. Test results are extracted into structured data (Groq, then Gemini, then a rule-based parser as fallbacks).
+4. Clinical context (history, medications, remarks) is extracted.
+5. A plain-language explanation is generated, using relevant knowledge base entries as reference, and saved.
 
-The user registers or logs in to access the application. Protected backend operations validate the user's identity and permissions.
+### Asking the chat
+1. The question is embedded and matched against the knowledge base.
+2. The backend gathers context: the current report's text, values, clinical context, a compact version of its explanation, the user's other reports (for comparisons) and recent chat history.
+3. Groq generates an answer under strict rules (see below).
+4. Fixed safety notices are added if needed, then the answer and its sources are returned and saved.
 
-### Step 2: Report Upload
+---
 
-The user uploads a supported medical report through the dashboard.
+## Safety Design
 
-The backend validates the request, associates the report with the authenticated user, and stores the original file in Supabase Storage.
+MediClarity combines **prompt rules** (what the model is told) with **code-level checks** (what is enforced regardless of the model):
 
-### Step 3: Text Extraction
-
-The backend extracts text from the uploaded report.
-
-- Text-based PDFs are processed using PyMuPDF.
-- Image-based reports are processed using Tesseract OCR and Pillow.
-
-The extracted text is retained for subsequent processing and display.
-
-### Step 4: Structured Data Extraction
-
-The extracted text is processed using an AI-assisted extraction pipeline.
-
-The backend attempts extraction through Groq, followed by Google Gemini, and then a rule-based fallback where required.
-
-The resulting parameters are represented using structured data models.
-
-### Step 5: Explanation Generation
-
-The structured results and available report context are used to generate a structured explanation.
-
-The explanation is saved and associated with the report.
-
-### Step 6: Report Review
-
-The user can access the report details page to view:
-
-- Original extracted text.
-- Structured medical parameters.
-- Reference ranges and extracted flags.
-- AI-generated explanations and report summaries.
-- Important observations and limitations.
-
-The original report remains available for comparison with the extracted information.
+| Concern | How it's handled |
+|---|---|
+| Invented values or ranges | Reference ranges come only from the report; the model must say when the report doesn't provide one |
+| Diagnosis | The model explains documented findings; it never diagnoses or predicts outcomes |
+| Medication advice | No medicine or class of medicines is named unless the report names it |
+| Emergencies | Chat: a fixed emergency notice (call **112** in India) is added in code whenever the question or answer mentions red-flag symptoms. Explanations: critical or urgent findings must include "contact your doctor promptly" |
+| Self-harm | A fixed notice with **Tele-MANAS (14416)** is added in code when the user's message suggests self-harm |
+| Prompt injection | Retrieved and uploaded text is treated as untrusted data, never as instructions |
+| Comparisons | Same test and unit only; direction and flag changes are described without stating causes |
+| Error details | Internal errors are logged on the server; users only see short, friendly messages |
 
 ---
 
 ## Project Structure
 
-The repository is organized as a monorepo containing the frontend and backend applications.
-
 ```text
 medical-report-explainer/
-│
+├── .github/workflows/
+│   ├── backend-tests.yml      # pytest + migrations on a fresh database
+│   └── frontend-checks.yml    # lint + production build
 ├── backend/
 │   ├── app/
-│   │   ├── main.py
-│   │   ├── api
-│   │   └── core
-│   │   └── models
-│   │   └── schemas
-│   │   └── services
-│   │   └── workers
-│   ├── migrations/
-│   ├── requirements.txt
+│   │   ├── api/               # auth and reports routes
+│   │   ├── core/              # config, database, security
+│   │   ├── models/            # SQLAlchemy models
+│   │   ├── schemas/           # Pydantic schemas (incl. AI output schemas)
+│   │   ├── services/          # OCR, extraction, explanation, knowledge base,
+│   │   │                      # report history, safety, storage
+│   │   └── main.py
+│   ├── migrations/            # Alembic migrations
+│   ├── scripts/               # embed_kb, search_kb, regenerate_explanation
+│   ├── tests/                 # pytest suite
+│   ├── .env.example
 │   ├── alembic.ini
-│   └── .env
-│
+│   ├── Dockerfile
+│   └── requirements.txt
 ├── frontend/
 │   ├── src/
-│   │   ├── app/
-│   │   │   ├── dashboard/
-│   │   │   ├── login/
-│   │   │   └── register/
-│   │   │   └── ...
-│   │   ├── components/
-│   │   ├── context/
-│   │   ├── lib/
-│   │   ├── services/
-│   │   ├── types/
-│   │
-│   ├── public/
-│   ├── package.json
-│   ├── eslint.config.mjs
-│   ├── .gitignore
-│   ├── next-env.d.ts
-│   ├── next.config.ts
-│   ├── package.json
-│   ├── package-lock.json
-│   ├── postcss.config.mjs
-│   ├── tsconfig.json
-│   └── .env.local
-│
+│   │   ├── app/               # pages: login, register, dashboard, report details
+│   │   ├── components/reports # explanation section, chat, chat widget
+│   │   ├── context/           # auth context
+│   │   ├── lib/               # Axios client
+│   │   ├── services/          # API calls
+│   │   └── types/
+│   └── package.json
 ├── screenshots/
-│
-├── .gitignore
 └── README.md
 ```
-
-*The tree is a high-level overview. Some folders and files may differ depending on the current implementation.*
 
 ---
 
 ## Getting Started
 
-Follow these instructions to run MediClarity locally.
-
 ### Prerequisites
+- **Python 3.11+** and **Node.js 20.9+** (CI uses Node 22)
+- **Git**
+- **Tesseract OCR**, installed separately (the `pytesseract` package only talks to it):
+  - **Windows:** install the [UB Mannheim build](https://github.com/UB-Mannheim/tesseract/wiki), then add `C:\Program Files\Tesseract-OCR` to your PATH and restart your terminal/editor
+  - **macOS:** `brew install tesseract`
+  - **Linux:** `sudo apt install tesseract-ocr`
+  - Check with `tesseract --version`
+- A **Supabase** project (PostgreSQL with pgvector, and a Storage bucket), a **Groq** API key and optionally a **Gemini** API key
 
-Install the following before starting:
-
-- Python 3.10 or a compatible version supported by the backend dependencies.
-- Node.js and npm.
-- Git.
-- A Supabase project with PostgreSQL and Storage configured.
-- A Groq API key.
-- A Google Gemini API key if you want to use the Gemini fallback.
-
-Tesseract OCR must also be installed on your machine and available to the backend.
-
-### 1. Clone the Repository
-
+### 1. Clone
 ```bash
 git clone https://github.com/Sarthak-Pattnaik/medical-report-explainer.git
-
 cd medical-report-explainer
 ```
 
-### 2. Backend Setup
-
-Navigate to the backend directory:
-
+### 2. Backend
 ```bash
 cd backend
-```
+python -m venv .venv
 
-Create and activate a Python virtual environment.
+# Windows
+.venv\Scripts\activate
+# macOS / Linux
+source .venv/bin/activate
 
-**Windows:**
-
-```bash
-python -m venv venv
-
-venv\Scripts\activate
-```
-
-**macOS/Linux:**
-
-```bash
-python3 -m venv venv
-
-source venv/bin/activate
-```
-
-Install the required dependencies:
-
-```bash
 pip install -r requirements.txt
 ```
-
-Configure the backend environment variables as described in the next section.
-
-Ensure that Tesseract OCR is installed and that its executable is accessible to the backend. If it is not available through the system PATH, configure the executable path in your OCR settings.
-
-Start the backend:
-
+Copy `.env.example` to `.env` and fill in the values (see [Environment Variables](#environment-variables)), then:
 ```bash
+alembic upgrade head
 uvicorn app.main:app --reload
 ```
+- API: `http://localhost:8000`
+- Swagger UI: `http://localhost:8000/docs`
+- Health checks: `/health` and `/health/database`
 
-The API will be available at:
+The first knowledge base search downloads the embedding model (~90 MB) once.
 
-```text
-http://127.0.0.1:8000
-```
-
-Interactive API documentation:
-
-```text
-http://127.0.0.1:8000/docs
-```
-
-### 3. Frontend Setup
-
-Open a new terminal and navigate to the frontend directory:
-
+### 3. Frontend
+In a second terminal:
 ```bash
 cd frontend
-```
-
-Install dependencies:
-
-```bash
 npm install
 ```
-
-Create a `.env.local` file in the frontend directory and configure the backend URL:
-
+Create `frontend/.env.local`:
 ```env
-NEXT_PUBLIC_API_URL=http://127.0.0.1:8000
+NEXT_PUBLIC_API_URL=http://localhost:8000
 ```
-
-Start the development server:
-
+Then:
 ```bash
 npm run dev
 ```
-
-Open the application at:
-
-```text
-http://localhost:3000
-```
-
-The frontend communicates with the FastAPI backend using the configured API URL.
+Open `http://localhost:3000`.
 
 ---
 
 ## Environment Variables
 
-The application uses environment variables to configure database access, cloud storage, AI providers, and API communication.
+The full list with comments is in [`backend/.env.example`](backend/.env.example).
 
-### Backend Environment Variables
+### Backend (`backend/.env`)
+| Variable | Required | Description |
+|---|---|---|
+| `DATABASE_URL` | ✅ | Supabase PostgreSQL connection string |
+| `JWT_SECRET_KEY` | ✅ | Secret for signing login tokens (same value wherever the database is shared) |
+| `GROQ_API_KEY` | ✅ | Groq API key |
+| `GEMINI_API_KEY` | | Gemini key for the fallback extractor |
+| `SUPABASE_URL` | ✅ | Supabase project URL |
+| `SUPABASE_SERVICE_ROLE_KEY` | ✅ | Service role key (server only — never expose it to the frontend) |
+| `SUPABASE_STORAGE_BUCKET` | | Defaults to `medical-reports` |
+| `GROQ_MODEL` | | Defaults to `openai/gpt-oss-20b` |
+| `CORS_ORIGINS` | | Comma-separated allowed frontend URLs. Defaults to localhost and the production Vercel URL |
 
-Create a `.env` file inside the `backend/` directory.
+### Frontend (`frontend/.env.local`)
+| Variable | Description |
+|---|---|
+| `NEXT_PUBLIC_API_URL` | Backend URL (local: `http://localhost:8000`; production: the Render URL) |
 
-The following is a template. Match the variable names to those used in your backend configuration.
-
-```env
-# Database
-DATABASE_URL=your_supabase_postgresql_connection_string
-
-# Supabase
-SUPABASE_URL=https://your-project.supabase.co
-SUPABASE_SERVICE_ROLE_KEY=your_service_role_key
-SUPABASE_STORAGE_BUCKET=medical-reports
-
-# AI Providers
-GROQ_API_KEY=your_groq_api_key
-GEMINI_API_KEY=your_gemini_api_key
-```
-
-Additional variables may be required depending on the backend configuration.
-
-**Important:** Use the exact variable names from the backend's settings and configuration files. Do not commit actual API keys, database credentials, or service-role keys.
-
-The Supabase service-role key must remain on the backend and must never be exposed through a `NEXT_PUBLIC_` variable.
-
-### Frontend Environment Variables
-
-Create `.env.local` inside `frontend/`.
-
-```env
-NEXT_PUBLIC_API_URL=http://127.0.0.1:8000
-```
-
-For production, configure the variable in Vercel:
-
-```env
-NEXT_PUBLIC_API_URL=https://medical-report-explainer-backend.onrender.com
-```
-
-The `NEXT_PUBLIC_` prefix makes the value accessible to frontend code. Only public configuration values should use this prefix.
+`.env` and `.env.local` are git-ignored. Never commit real keys.
 
 ---
 
-## Running the Application
+## Database and Migrations
 
-For local development, run the backend and frontend in separate terminals.
+The schema is managed with **Alembic**.
 
-| Service | Command | Local URL |
-|---|---|---|
-| FastAPI Backend | `uvicorn app.main:app --reload` | `http://127.0.0.1:8000` |
-| Frontend | `npm run dev` | `http://localhost:3000` |
-| Swagger Documentation | Provided by FastAPI | `http://127.0.0.1:8000/docs` |
+```bash
+alembic upgrade head   # apply all migrations
+alembic current        # show the database's migration version
+alembic check          # compare models with the database (changes nothing)
+```
 
-Make sure that:
+**Team rule:** all table, column and key changes go through an Alembic migration in a pull request — never through the Supabase dashboard. Run `alembic check` against Supabase after applying a migration to catch drift.
 
-1. The backend environment variables are configured.
-2. The database and Supabase Storage are accessible.
-3. Tesseract OCR is installed.
-4. The frontend API URL points to the running backend.
-5. The backend CORS configuration allows the frontend origin.
+**Knowledge base:** the `kb_entries` table and the `search_kb()` SQL function were created directly in Supabase and are **not** part of the migrations. Alembic is configured to ignore `kb_entries` so autogenerate never tries to drop it.
+
+---
+
+## Utility Scripts
+
+Run from `backend/` with the virtual environment active:
+
+| Command | What it does |
+|---|---|
+| `python -m scripts.embed_kb` | Creates embeddings for knowledge base entries that don't have one yet |
+| `python -m scripts.search_kb` | Test a knowledge base search from the command line |
+| `python -m scripts.regenerate_explanation <report_id>` | Re-runs only the explanation step for a report |
+
+---
+
+## Testing and CI
+
+```bash
+cd backend
+python -m pytest tests -v
+```
+29 tests cover the API (auth, upload validation, health checks, CORS, explanation retry), safety notices, prompt compaction, timezone formatting and configuration. External services are replaced with fakes, so tests need no database or API keys.
+
+```bash
+cd frontend
+npm run lint
+npm run build
+```
+
+**GitHub Actions** runs on every pull request and push to `main`, and all three checks must pass before merging:
+
+| Check | What it runs |
+|---|---|
+| `test` | Backend pytest suite (Python 3.11) |
+| `migrations` | `alembic upgrade head` + `alembic check` on a fresh PostgreSQL |
+| `lint-and-build` | Frontend ESLint + production build (Node 22) |
 
 ---
 
 ## API Endpoints
 
-The backend exposes REST APIs through FastAPI.
+Full request/response schemas are in the [Swagger UI](https://medical-report-explainer-backend.onrender.com/docs).
 
-The following table summarizes the principal API operations.
-
-| Operation | Endpoint | Description |
+| Method | Endpoint | Description |
 |---|---|---|
-| Authentication | `/auth/...` | User registration and login operations |
-| Upload Report | `POST /reports/...` | Upload and process a medical report |
-| Report Retrieval | `/reports/{report_id}` | Retrieve report information |
-| Explanation Retrieval | `GET /reports/{report_id}/explanation` | Retrieve the saved explanation |
-| Report Download | `/reports/{report_id}/download` | Download the original report |
+| `POST` | `/auth/register` | Create an account |
+| `POST` | `/auth/login` | Log in and receive a JWT |
+| `GET` | `/auth/me` | Current user |
+| `POST` | `/reports/upload` | Upload and process a report |
+| `GET` | `/reports/` | List the user's reports |
+| `GET` | `/reports/{report_id}` | Report details |
+| `GET` | `/reports/{report_id}/file` | Download the original file |
+| `GET` | `/reports/{report_id}/analysis` | Extracted text, structured data and clinical context |
+| `GET` | `/reports/{report_id}/explanation` | Saved explanation |
+| `POST` | `/reports/{report_id}/explanation/retry` | Generate a missing explanation |
+| `POST` | `/reports/{report_id}/chat` | Ask the chat assistant (returns answer + sources) |
+| `GET` | `/reports/{report_id}/chat` | Chat history |
+| `DELETE` | `/reports/{report_id}/chat` | Clear chat history |
+| `GET` | `/health`, `/health/database` | Health checks (`/health/database` returns 503 if the database is unreachable) |
 
-The authentication and upload routes are summarized by operation because their exact paths and request schemas depend on the current router implementation.
-
-For the complete list of available routes, HTTP methods, request parameters, and response schemas, refer to the interactive API documentation:
-
-**[Open MediClarity Swagger UI](https://medical-report-explainer-backend.onrender.com/docs)**
-
-All protected report operations enforce user access and report ownership on the backend.
+All `/reports` endpoints require a valid token and only return the caller's own data.
 
 ---
 
 ## Deployment
 
-MediClarity is deployed using the following services:
-
 | Component | Platform |
 |---|---|
-| Frontend | Vercel |
-| Backend | Render |
-| Database | Supabase PostgreSQL |
-| File Storage | Supabase Storage |
+| Frontend | Vercel (root directory `frontend`) |
+| Backend | Render (using `backend/Dockerfile`) |
+| Database + vector search | Supabase PostgreSQL + pgvector |
+| File storage | Supabase Storage |
 
-### Frontend Deployment
+- Set backend environment variables in the Render dashboard and `NEXT_PUBLIC_API_URL` in Vercel.
+- To allow a new frontend URL, set `CORS_ORIGINS` on Render (list every allowed origin, comma-separated) and redeploy.
+- Embeddings run with ONNX Runtime instead of PyTorch, which keeps memory within Render's free tier (≈245 MB vs ≈576 MB for the embedding step).
+- Migrations are not run automatically on deploy; apply them with `alembic upgrade head`.
 
-The Next.js application is deployed on Vercel.
+---
 
-- Root directory: `frontend`
-- Framework: Next.js
-- Production API URL: `https://medical-report-explainer-backend.onrender.com`
+## Known Limitations
 
-### Backend Deployment
-
-The FastAPI application is deployed on Render.
-
-- Root directory: `backend`
-- Build command:
-
-```bash
-pip install -r requirements.txt
-```
-
-- Start command:
-
-```bash
-uvicorn app.main:app --host 0.0.0.0 --port $PORT
-```
-
-Configure the required environment variables through the Render dashboard.
-
-### CORS Configuration
-
-The backend must allow requests from the deployed frontend origin.
-
-For local development and production, the configured origins include:
-
-```python
-allow_origins=[
-    "http://localhost:3000",
-    "http://127.0.0.1:3000",
-    "https://medical-report-explainer-lake.vercel.app",
-]
-```
-
-CORS configuration should be updated whenever the frontend's deployed origin changes.
+- **OCR on photos** of reports (blurry, skewed, low-resolution) can fail; clear PDFs work best.
+- **Groq free tier:** 8,000 tokens per minute. Uploading a report and chatting within the same minute can briefly fail — waiting about a minute fixes it.
+- **Comparisons are ordered by upload time**, not by the test date printed on the report.
+- **Uploads are processed synchronously** (OCR + several AI calls in one request), so large files take a while.
+- **Knowledge base content** is not stored in the repository, and topics without an entry are answered from the model's general knowledge (without source tags).
+- Chat source tags are not stored with messages, so they don't appear when chat history is reloaded.
 
 ---
 
 ## Medical Disclaimer
 
-MediClarity is intended for educational and informational purposes only.
+MediClarity is for **educational and informational purposes only**.
 
-- The explanations generated by the application are not medical diagnoses.
-- AI-generated content may contain errors, omissions, or inaccuracies.
-- Extracted values, units, reference ranges, and flags should be checked against the original medical report.
-- Reference ranges and interpretations may vary depending on the laboratory, testing method, patient characteristics, and clinical context.
-- The application does not replace consultation with a qualified healthcare professional.
-- Do not make medical, medication, or treatment decisions solely on the basis of information generated by MediClarity.
-
-Users should consult a qualified healthcare professional for the interpretation of their medical results and for any diagnosis or treatment decisions.
+- Its explanations are not medical diagnoses and may contain errors or omissions.
+- Always check extracted values, units, reference ranges and flags against the original report.
+- It does not replace a qualified healthcare professional. Do not make medical, medication or treatment decisions based on it.
+- In an emergency in India, call **112**.
 
 ---
 
-## Future Improvements
+## Team
 
-Potential future enhancements include:
-
-- Improved OCR accuracy for low-quality and handwritten reports.
-- Support for additional medical report formats.
-- More robust validation of extracted values and reference ranges.
-- Improved handling of uncertain or incomplete extraction results.
-- Additional report visualization and historical comparison features.
-- Expanded test coverage and automated integration testing.
-- Enhanced privacy controls and secure handling of sensitive medical information.
-
----
-
-## Author
-
-**Sarthak Pattnaik**
-
-Computer Science and Engineering
-
-GitHub: [Sarthak-Pattnaik](https://github.com/Sarthak-Pattnaik)
-
----
-
-If you find this project useful, consider giving the repository a star!
+| Name | GitHub | Main contributions |
+|---|---|---|
+| Sarthak Pattnaik | [Sarthak-Pattnaik](https://github.com/Sarthak-Pattnaik) | Core application: authentication, upload, OCR, extraction pipeline, explanations, frontend, deployment |
+| Shomeraj Dey | [Shomeraj81](https://github.com/Shomeraj81) | Chat RAG and source tags, cross-report comparison, embedding memory fix, safety notices, tests and CI, logging and error handling, migrations, frontend lint and design consistency, explanation retry |
