@@ -471,6 +471,72 @@ def get_report_explanation(
         "created_at": analysis.created_at
     }
 
+@router.post("/{report_id}/explanation/retry")
+def retry_report_explanation(
+    report_id: int,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    # Fetch the analysis with ownership verification.
+    analysis = db.scalar(
+        select(ReportAnalysis)
+        .join(MedicalReport)
+        .where(
+            ReportAnalysis.report_id == report_id,
+            MedicalReport.user_id == current_user.id
+        )
+    )
+
+    if analysis is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Analysis not found"
+        )
+
+    # Only retry missing explanations. Regenerating an existing one
+    # would spend tokens and could change text the user already read.
+    if analysis.explanation is not None:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="This report already has an explanation"
+        )
+
+    try:
+        explanation = GroqExplanationService().explain(
+            extracted_text=analysis.extracted_text or "",
+            structured_data=analysis.structured_data or {},
+            clinical_context=analysis.clinical_context or {},
+        )
+    except Exception:
+        logger.exception("Explanation retry failed")
+
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail=(
+                "We couldn't generate the explanation right now. "
+                "Please try again in a minute."
+            ),
+        )
+
+    analysis.explanation = explanation.model_dump()
+
+    try:
+        db.commit()
+    except Exception:
+        db.rollback()
+        logger.exception("Could not save regenerated explanation")
+
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Unable to save the explanation"
+        )
+
+    return {
+        "report_id": analysis.report_id,
+        "explanation": analysis.explanation,
+        "created_at": analysis.created_at
+    }
+
 @router.post("/{report_id}/chat")
 def chat_with_report(
     report_id: int,

@@ -11,6 +11,7 @@ import {
   getReportDetails,
   getReportAnalysis,
   getReportExplanation,
+  retryReportExplanation,
   downloadReportFile,
   type ReportDetails,
   type ReportAnalysis,
@@ -46,6 +47,32 @@ export default function ReportDetailsPage() {
 
   const [explanationError, setExplanationError] =
     useState("");
+  
+  const [canRetryExplanation, setCanRetryExplanation] =
+    useState(false);
+  const [isRetryingExplanation, setIsRetryingExplanation] =
+    useState(false);
+  const [retryExplanationError, setRetryExplanationError] =
+    useState("");
+
+  const handleRetryExplanation = async () => {
+    setIsRetryingExplanation(true);
+    setRetryExplanationError("");
+
+    try {
+      const data = await retryReportExplanation(reportId);
+
+      setExplanation(data.explanation);
+      setExplanationError("");
+      setCanRetryExplanation(false);
+    } catch {
+      setRetryExplanationError(
+        "Couldn't generate the explanation. Please try again in a minute."
+      );
+    } finally {
+      setIsRetryingExplanation(false);
+    }
+  };
 
   const handlePreviewFile = async () => {
     try {
@@ -133,6 +160,7 @@ export default function ReportDetailsPage() {
         if (!data) {
           // Graceful empty state
           setExplanationError("No explanation has been generated for this report yet.");
+          setCanRetryExplanation(true);
           return;
         }
 
@@ -736,6 +764,11 @@ export default function ReportDetailsPage() {
                 explanation={explanation}
                 loading={isLoadingExplanation}
                 error={explanationError}
+                onRetry={
+                  canRetryExplanation ? handleRetryExplanation : undefined
+                }
+                retrying={isRetryingExplanation}
+                retryError={retryExplanationError}
               />
 
               <ReportChatWidget reportId={reportId} />

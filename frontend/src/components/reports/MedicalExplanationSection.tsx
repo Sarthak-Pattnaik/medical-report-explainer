@@ -10,6 +10,9 @@ interface MedicalExplanationSectionProps {
   explanation: MedicalExplanation | null;
   loading: boolean;
   error: string;
+  onRetry?: () => void;
+  retrying?: boolean;
+  retryError?: string;
 }
 
 
@@ -127,6 +130,9 @@ export default function MedicalExplanationSection({
   explanation,
   loading,
   error,
+  onRetry,
+  retrying = false,
+  retryError = "",
 }: MedicalExplanationSectionProps) {
   if (loading) {
     return (
@@ -189,10 +195,30 @@ export default function MedicalExplanationSection({
             are still available above.
           </p>
 
-          <span className="mt-5 inline-flex items-center gap-2 rounded-full border border-slate-700/60 bg-slate-800/40 px-3 py-1.5 text-xs text-slate-500">
-            <span className="h-1.5 w-1.5 rounded-full bg-slate-500" />
-            Explanation unavailable
-          </span>
+          {onRetry ? (
+            <div className="mt-5 flex flex-col items-center gap-2">
+              <button
+                type="button"
+                onClick={onRetry}
+                disabled={retrying}
+                className="rounded-lg bg-emerald-500 px-4 py-2 text-sm font-semibold text-slate-950 transition hover:bg-emerald-400 disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                {retrying
+                  ? "Generating explanation..."
+                  : "Generate explanation"}
+              </button>
+
+              {retryError && (
+                <p className="text-xs text-red-300">{retryError}</p>
+              )}
+            </div>
+          ) : (
+            <span className="mt-5 inline-flex items-center gap-2 rounded-full border border-slate-700/60 bg-slate-800/40 px-3 py-1.5 text-xs text-slate-500">
+              <span className="h-1.5 w-1.5 rounded-full bg-slate-500" />
+              Explanation unavailable
+            </span>
+          )}
+          
         </div>
       </section>
     );

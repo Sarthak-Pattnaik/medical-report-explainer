@@ -1,3 +1,4 @@
+from datetime import datetime, timezone
 from types import SimpleNamespace
 
 import pytest
@@ -7,7 +8,7 @@ from app.api.dependencies import get_current_user
 from app.api.reports import MAX_FILE_SIZE
 from app.core.database import get_db
 from app.main import app
-
+import app.api.reports as reports_module
 
 client = TestClient(app)
 
@@ -129,3 +130,97 @@ def test_cors_rejects_unknown_site():
     )
 
     assert "access-control-allow-origin" not in response.headers
+
+
+# ---------- Retry explanation ----------
+
+class FakeAnalysisSession:
+    def __init__(self, analysis):
+        self.analysis = analysis
+        self.committed = False
+
+    def scalar(self, statement):
+        return self.analysis
+
+    def commit(self):
+        self.committed = True
+
+    def rollback(self):
+        pass
+
+
+def make_analysis(explanation=None):
+    return SimpleNamespace(
+        report_id=7,
+        explanation=explanation,
+        extracted_text="Hemoglobin 11.8 g/dL",
+        structured_data={},
+        clinical_context={},
+        created_at=datetime(2026, 11, 8, tzinfo=timezone.utc),
+    )
+
+
+class FakeExplanationService:
+    def explain(self, **kwargs):
+        return SimpleNamespace(
+            model_dump=lambda: {"report_summary": "Test summary"}
+        )
+
+
+class FailingExplanationService:
+    def explain(self, **kwargs):
+        raise RuntimeError("Groq is down")
+
+
+def use_retry_session(session):
+    app.dependency_overrides[get_current_user] = fake_logged_in_user
+    app.dependency_overrides[get_db] = use_session(session)
+
+
+def test_retry_explanation_not_found():
+    use_retry_session(FakeAnalysisSession(None))
+
+    response = client.post("/reports/7/explanation/retry")
+
+    assert response.status_code == 404
+
+
+def test_retry_explanation_refuses_when_one_exists():
+    session = FakeAnalysisSession(
+        make_analysis(explanation={"report_summary": "Existing"})
+    )
+    use_retry_session(session)
+
+    response = client.post("/reports/7/explanation/retry")
+
+    assert response.status_code == 409
+    assert session.committed is False
+
+
+def test_retry_explanation_saves_new_explanation(monkeypatch):
+    monkeypatch.setattr(
+        reports_module, "GroqExplanationService", FakeExplanationService
+    )
+    session = FakeAnalysisSession(make_analysis())
+    use_retry_session(session)
+
+    response = client.post("/reports/7/explanation/retry")
+
+    assert response.status_code == 200
+    assert response.json()["explanation"] == {
+        "report_summary": "Test summary"
+    }
+    assert session.committed is True
+
+
+def test_retry_explanation_reports_ai_failure(monkeypatch):
+    monkeypatch.setattr(
+        reports_module, "GroqExplanationService", FailingExplanationService
+    )
+    session = FakeAnalysisSession(make_analysis())
+    use_retry_session(session)
+
+    response = client.post("/reports/7/explanation/retry")
+
+    assert response.status_code == 502
+    assert session.committed is False
