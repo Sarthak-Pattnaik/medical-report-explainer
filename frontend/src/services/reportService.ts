@@ -175,3 +175,14 @@ export async function getReportExplanation(
     throw error;
   }
 }
+
+// Ask the backend to generate a missing explanation again.
+export async function retryReportExplanation(
+  reportId: number
+): Promise<ReportExplanationResponse> {
+  const response = await api.post<ReportExplanationResponse>(
+    `/reports/${reportId}/explanation/retry`
+  );
+
+  return response.data;
+}
