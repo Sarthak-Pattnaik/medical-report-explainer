@@ -1,3 +1,7 @@
+from datetime import datetime
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
+from sqlalchemy import select
+
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
@@ -10,11 +14,24 @@ MAX_OTHER_REPORTS = 5
 
 PARAMETER_FIELDS = ("name", "value", "unit", "flag", "reference_range")
 
+def format_timestamp(value: datetime, timezone_name: str | None) -> str:
+    """
+    Format a stored UTC timestamp in the user's timezone, falling
+    back to UTC if the timezone is missing or unknown.
+    """
+
+    try:
+        zone = ZoneInfo(timezone_name) if timezone_name else ZoneInfo("UTC")
+    except (ZoneInfoNotFoundError, ValueError):
+        zone = ZoneInfo("UTC")
+
+    return value.astimezone(zone).strftime("%Y-%m-%d %H:%M %Z")
 
 def get_other_reports_context(
     db: Session,
     user_id: int,
     current_report: MedicalReport,
+    timezone_name: str | None = None,
 ) -> list[dict]:
     """
     Return extracted values from the user's other completed
@@ -51,7 +68,9 @@ def get_other_reports_context(
 
         other_reports.append({
             "report_id": report.id,
-            "uploaded_at": report.created_at.strftime("%Y-%m-%d %H:%M"),
+            "uploaded_at": format_timestamp(
+                report.created_at, timezone_name
+            ),
             "timing": (
                 "earlier"
                 if report.created_at < current_report.created_at

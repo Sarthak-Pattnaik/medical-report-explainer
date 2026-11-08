@@ -34,7 +34,8 @@ from app.models.chat_message import ChatMessage
 from app.schemas.chat import ChatRequest
 
 from app.services.report_history_service import (
-    get_other_reports_context
+    format_timestamp,
+    get_other_reports_context,
 )
 
 logger = logging.getLogger(__name__)
@@ -552,6 +553,7 @@ def chat_with_report(
         db=db,
         user_id=current_user.id,
         current_report=report,
+        timezone_name=request.timezone,
     )
 
     # --------------------------------------------------
@@ -569,8 +571,8 @@ def chat_with_report(
             conversation_history=conversation_history,
             user_message=request.message,
             other_reports=other_reports,
-            current_report_uploaded_at=report.created_at.strftime(
-                "%Y-%m-%d %H:%M"
+            current_report_uploaded_at=format_timestamp(
+                report.created_at, request.timezone
             )
         )
 

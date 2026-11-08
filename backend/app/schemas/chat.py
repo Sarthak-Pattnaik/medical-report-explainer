@@ -8,6 +8,9 @@ class ChatRequest(BaseModel):
         max_length=4000
     )
 
+    # IANA timezone name from the browser, e.g. "Asia/Kolkata".
+    timezone: str | None = Field(default=None, max_length=64)
+
     @field_validator("message")
     @classmethod
     def validate_message(cls, value: str) -> str:
