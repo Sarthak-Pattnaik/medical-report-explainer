@@ -1,25 +1,27 @@
-
 "use client";
 
 import Link from "next/link";
 import { FormEvent, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
-  Activity,
-  ArrowRight,
   CheckCircle2,
   Eye,
   EyeOff,
   LockKeyhole,
   Mail,
   ShieldCheck,
-  Stethoscope,
-  UserPlus,
-  AlertCircle,
-  LoaderCircle,
 } from "lucide-react";
 
 import { registerUser } from "@/services/authService";
+
+const inputClass =
+  "w-full rounded-xl border border-white/8 bg-[#080d18] py-3.5 pl-12 pr-14 text-sm text-white outline-none transition placeholder:text-slate-600 focus:border-emerald-400/50 focus:ring-2 focus:ring-emerald-400/10";
+
+const inputIconClass =
+  "pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-slate-500";
+
+const toggleClass =
+  "absolute inset-y-0 right-4 flex items-center text-slate-500 transition hover:text-emerald-300";
 
 export default function RegisterPage() {
   const router = useRouter();
@@ -93,57 +95,49 @@ export default function RegisterPage() {
     }
   }
 
-  const inputClass =
-    "w-full rounded-xl border border-white/[0.08] bg-[#0b1120] py-3.5 pl-11 pr-12 text-sm text-slate-100 outline-none transition placeholder:text-slate-600 focus:border-emerald-500/50 focus:ring-2 focus:ring-emerald-500/10";
-
   return (
-    <main className="relative flex min-h-screen items-center justify-center overflow-hidden bg-[#080d18] px-4 py-10 text-slate-100 sm:px-6">
+    <main className="relative flex min-h-screen items-center justify-center overflow-hidden bg-[#080d18] px-5 py-10 text-slate-100 sm:px-8">
+      {/* Background decorations */}
+      <div className="pointer-events-none absolute inset-0 overflow-hidden">
+        <div className="absolute -left-40 -top-40 h-96 w-96 rounded-full bg-emerald-500/[0.07] blur-[120px]" />
+        <div className="absolute -bottom-40 -right-40 h-96 w-96 rounded-full bg-emerald-400/5 blur-[120px]" />
+      </div>
 
-      {/* Background glow */}
-      <div className="pointer-events-none absolute -left-40 -top-40 h-96 w-96 rounded-full bg-emerald-500/8 blur-[120px]" />
-      <div className="pointer-events-none absolute -bottom-40 -right-40 h-96 w-96 rounded-full bg-teal-500/6 blur-[120px]" />
-
-      <div className="relative z-10 w-full max-w-md">
-
+      <div className="relative w-full max-w-md">
         {/* Brand */}
         <Link
           href="/"
           className="mb-8 flex items-center justify-center gap-3"
         >
-          <div className="flex h-11 w-11 items-center justify-center rounded-2xl border border-emerald-400/20 bg-emerald-500/10">
-            <Activity
-              size={23}
-              className="text-emerald-400"
-            />
+          <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-emerald-400 text-xl font-bold text-slate-950 shadow-lg shadow-emerald-500/10">
+            M
           </div>
 
           <div>
-            <h1 className="text-xl font-bold tracking-tight text-white">
+            <p className="text-xl font-semibold tracking-tight text-white">
               Medi<span className="text-emerald-400">Clarity</span>
-            </h1>
-            <p className="text-xs text-slate-500">
-              Understand your medical reports
+            </p>
+
+            <p className="mt-0.5 text-[10px] font-medium tracking-[0.18em] text-slate-500">
+              MEDICAL REPORT EXPLAINER
             </p>
           </div>
         </Link>
 
         {/* Registration Card */}
-        <div className="rounded-2xl border border-white/8 bg-[#111827]/90 p-6 shadow-2xl shadow-black/20 sm:p-8">
-
+        <div className="rounded-3xl border border-white/8 bg-slate-900/70 p-6 shadow-2xl shadow-black/20 backdrop-blur-xl sm:p-9">
           {/* Heading */}
-          <div className="mb-7">
-            <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-xl bg-emerald-500/10">
-              <UserPlus
-                size={22}
-                className="text-emerald-400"
-              />
+          <div className="mb-8">
+            <div className="mb-4 inline-flex items-center gap-2 rounded-full border border-emerald-400/15 bg-emerald-400/6 px-3 py-1.5 text-xs font-medium text-emerald-300">
+              <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" />
+              Your health documents, simplified
             </div>
 
-            <h2 className="text-2xl font-bold tracking-tight text-white">
+            <h1 className="text-3xl font-semibold tracking-tight text-white">
               Create your account
-            </h2>
+            </h1>
 
-            <p className="mt-2 text-sm leading-6 text-slate-400">
+            <p className="mt-3 text-sm leading-6 text-slate-400">
               Get started with clearer, easier-to-understand
               medical reports.
             </p>
@@ -154,7 +148,6 @@ export default function RegisterPage() {
             onSubmit={handleSubmit}
             className="space-y-5"
           >
-
             {/* Email */}
             <div>
               <label
@@ -165,10 +158,7 @@ export default function RegisterPage() {
               </label>
 
               <div className="relative">
-                <Mail
-                  size={18}
-                  className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-500"
-                />
+                <Mail size={20} className={inputIconClass} />
 
                 <input
                   id="email"
@@ -195,10 +185,7 @@ export default function RegisterPage() {
               </label>
 
               <div className="relative">
-                <LockKeyhole
-                  size={18}
-                  className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-500"
-                />
+                <LockKeyhole size={20} className={inputIconClass} />
 
                 <input
                   id="password"
@@ -217,14 +204,14 @@ export default function RegisterPage() {
                 <button
                   type="button"
                   onClick={() =>
-                    setShowPassword(!showPassword)
+                    setShowPassword((previous) => !previous)
                   }
                   aria-label={
                     showPassword
                       ? "Hide password"
                       : "Show password"
                   }
-                  className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-500 transition hover:text-emerald-400"
+                  className={toggleClass}
                 >
                   {showPassword ? (
                     <EyeOff size={18} />
@@ -237,7 +224,7 @@ export default function RegisterPage() {
               <p className="mt-2 flex items-center gap-1.5 text-xs text-slate-500">
                 <ShieldCheck
                   size={14}
-                  className="text-emerald-500/70"
+                  className="text-emerald-400/70"
                 />
                 Use at least 8 characters.
               </p>
@@ -253,10 +240,7 @@ export default function RegisterPage() {
               </label>
 
               <div className="relative">
-                <LockKeyhole
-                  size={18}
-                  className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-500"
-                />
+                <LockKeyhole size={20} className={inputIconClass} />
 
                 <input
                   id="confirmPassword"
@@ -280,7 +264,7 @@ export default function RegisterPage() {
                   type="button"
                   onClick={() =>
                     setShowConfirmPassword(
-                      !showConfirmPassword
+                      (previous) => !previous
                     )
                   }
                   aria-label={
@@ -288,7 +272,7 @@ export default function RegisterPage() {
                       ? "Hide confirm password"
                       : "Show confirm password"
                   }
-                  className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-500 transition hover:text-emerald-400"
+                  className={toggleClass}
                 >
                   {showConfirmPassword ? (
                     <EyeOff size={18} />
@@ -318,46 +302,47 @@ export default function RegisterPage() {
               )}
             </div>
 
-            {/* Error Message */}
+            {/* Error */}
             {error && (
               <div
                 role="alert"
-                className="flex items-start gap-3 rounded-xl border border-red-500/20 bg-red-500/[0.07] p-3.5 text-sm text-red-300"
+                className="flex items-start gap-3 rounded-xl border border-red-400/15 bg-red-400/5 p-4"
               >
-                <AlertCircle
-                  size={18}
-                  className="mt-0.5 shrink-0"
-                />
-                <p>{error}</p>
+                <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full border border-red-400/20 text-xs font-semibold text-red-300">
+                  !
+                </span>
+
+                <p className="text-sm leading-6 text-red-300">
+                  {error}
+                </p>
               </div>
             )}
 
-            {/* Success Message */}
+            {/* Success */}
             {success && (
               <div
                 role="status"
-                className="flex items-start gap-3 rounded-xl border border-emerald-500/20 bg-emerald-500/[0.07] p-3.5 text-sm text-emerald-300"
+                className="flex items-start gap-3 rounded-xl border border-emerald-400/15 bg-emerald-400/5 p-4"
               >
-                <CheckCircle2
-                  size={18}
-                  className="mt-0.5 shrink-0"
-                />
-                <p>{success}</p>
+                <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full border border-emerald-400/20 text-xs font-semibold text-emerald-300">
+                  ✓
+                </span>
+
+                <p className="text-sm leading-6 text-emerald-300">
+                  {success}
+                </p>
               </div>
             )}
 
-            {/* Submit Button */}
+            {/* Submit */}
             <button
               type="submit"
               disabled={loading || !!success}
-              className="group flex w-full items-center justify-center gap-2 rounded-xl bg-emerald-500 px-4 py-3.5 text-sm font-semibold text-[#06110d] shadow-lg shadow-emerald-500/10 transition hover:bg-emerald-400 disabled:cursor-not-allowed disabled:opacity-50"
+              className="flex w-full items-center justify-center gap-2 rounded-xl bg-emerald-400 px-5 py-3.5 text-sm font-semibold text-slate-950 shadow-lg shadow-emerald-500/8 transition hover:bg-emerald-300 disabled:cursor-not-allowed disabled:opacity-50"
             >
               {loading ? (
                 <>
-                  <LoaderCircle
-                    size={18}
-                    className="animate-spin"
-                  />
+                  <span className="h-4 w-4 animate-spin rounded-full border-2 border-slate-950/30 border-t-slate-950" />
                   Creating account...
                 </>
               ) : success ? (
@@ -365,22 +350,19 @@ export default function RegisterPage() {
               ) : (
                 <>
                   Create account
-                  <ArrowRight
-                    size={18}
-                    className="transition-transform group-hover:translate-x-1"
-                  />
+                  <span aria-hidden="true">→</span>
                 </>
               )}
             </button>
           </form>
 
-          {/* Login Link */}
+          {/* Login link */}
           <div className="mt-7 border-t border-white/6 pt-6">
             <p className="text-center text-sm text-slate-400">
               Already have an account?{" "}
               <Link
                 href="/login"
-                className="font-semibold text-emerald-400 transition hover:text-emerald-300"
+                className="font-semibold text-emerald-300 transition hover:text-emerald-200"
               >
                 Sign in
               </Link>
@@ -389,19 +371,15 @@ export default function RegisterPage() {
         </div>
 
         {/* Footer */}
-        <div className="mt-6 space-y-2 text-center">
-          <div className="flex items-center justify-center gap-2 text-xs text-slate-500">
-            <Stethoscope
-              size={14}
-              className="text-emerald-500/70"
-            />
-            Your health information deserves clarity.
-          </div>
+        <div className="mt-6 text-center">
+          <p className="text-xs leading-6 text-slate-500">
+            Your medical documents are private and
+            accessible only through your account.
+          </p>
 
-          <p className="text-[11px] leading-5 text-slate-600">
-            MediClarity provides educational explanations
-            of medical reports and is not a substitute
-            for professional medical advice.
+          <p className="mt-3 text-xs text-slate-600">
+            MediClarity provides educational information
+            and does not replace professional medical advice.
           </p>
         </div>
       </div>

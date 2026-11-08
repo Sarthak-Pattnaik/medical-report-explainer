@@ -4,6 +4,7 @@
 import { FormEvent, useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import { Eye, EyeOff } from "lucide-react";
 
 import { useAuth } from "@/context/AuthContext";
 
@@ -213,9 +214,13 @@ export default function LoginPage() {
                       ? "Hide password"
                       : "Show password"
                   }
-                  className="absolute inset-y-0 right-4 flex items-center text-xs font-medium text-slate-500 transition hover:text-emerald-300"
+                  className="absolute inset-y-0 right-4 flex items-center text-slate-500 transition hover:text-emerald-300"
                 >
-                  {showPassword ? "Hide" : "Show"}
+                  {showPassword ? (
+                    <EyeOff size={18} />
+                  ) : (
+                    <Eye size={18} />
+                  )}
                 </button>
               </div>
             </div>
