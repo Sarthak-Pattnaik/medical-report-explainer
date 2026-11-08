@@ -4,8 +4,8 @@ import "./globals.css";
 
 
 export const metadata: Metadata = {
-  title: "Medical Report Explainer",
-  description: "AI-powered medical report explanation",
+  title: "MediClarity",
+  description: "Plain-language explanations of your medical reports",
 };
 
 export default function RootLayout({

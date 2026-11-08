@@ -201,8 +201,7 @@ export default function MedicalExplanationSection({
                 type="button"
                 onClick={onRetry}
                 disabled={retrying}
-                className="rounded-lg bg-emerald-500 px-4 py-2 text-sm font-semibold text-slate-950 transition hover:bg-emerald-400 disabled:cursor-not-allowed disabled:opacity-60"
-              >
+                className="rounded-xl bg-emerald-400 px-5 py-3 text-sm font-semibold text-slate-950 transition hover:bg-emerald-300 disabled:cursor-not-allowed disabled:opacity-50"              >
                 {retrying
                   ? "Generating explanation..."
                   : "Generate explanation"}
