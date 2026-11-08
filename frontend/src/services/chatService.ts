@@ -38,7 +38,12 @@ export const sendChatMessage = async (
 ): Promise<ChatResponse> => {
   const response = await api.post<ChatResponse>(
     `/reports/${reportId}/chat`,
-    { message }
+    {
+      message,
+      // The user's timezone, e.g. "Asia/Kolkata", so the backend
+      // can show upload times in local time.
+      timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+    }
   );
 
   return response.data;
