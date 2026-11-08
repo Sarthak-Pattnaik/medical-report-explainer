@@ -87,7 +87,7 @@ function SourceText({
         </span>
       </summary>
 
-      <p className="mt-3 whitespace-pre-wrap wrap-break-word rounded-xl border border-white/6 bg-[#080d18] p-4 text-sm leading-6 text-slate-400">
+      <p className="mt-3 whitespace-pre-wrap wrap-break-word rounded-xl border border-white/6 bg-app p-4 text-sm leading-6 text-slate-400">
         {text}
       </p>
     </details>
@@ -100,7 +100,7 @@ function ContextCard({
   item: ClinicalContextExplanation;
 }) {
   return (
-    <article className="rounded-xl border border-white/[0.07] bg-[#0b1120] p-5 transition hover:border-emerald-400/20">
+    <article className="rounded-xl border border-white/[0.07] bg-panel p-5 transition hover:border-emerald-400/20">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <span className="rounded-full border border-emerald-400/20 bg-emerald-400/6 px-3 py-1 text-xs font-medium text-emerald-300">
           {formatCategory(item.category)}
@@ -143,7 +143,7 @@ export default function MedicalExplanationSection({
           description="Preparing the plain-language explanation of your report."
         />
 
-        <div className="mt-6 flex items-center gap-3 rounded-xl border border-white/6 bg-[#0b1120] p-5">
+        <div className="mt-6 flex items-center gap-3 rounded-xl border border-white/6 bg-panel p-5">
           <span className="h-5 w-5 animate-spin rounded-full border-2 border-emerald-400/20 border-t-emerald-400" />
 
           <p className="text-sm text-slate-400">
@@ -201,7 +201,7 @@ export default function MedicalExplanationSection({
                 type="button"
                 onClick={onRetry}
                 disabled={retrying}
-                className="rounded-xl bg-emerald-400 px-5 py-3 text-sm font-semibold text-slate-950 transition hover:bg-emerald-300 disabled:cursor-not-allowed disabled:opacity-50"              >
+                className="btn-primary"            >
                 {retrying
                   ? "Generating explanation..."
                   : "Generate explanation"}
@@ -252,7 +252,7 @@ export default function MedicalExplanationSection({
         </div>
 
         <div className="p-6 sm:p-8">
-          <div className="rounded-xl border border-white/6 bg-[#0b1120] p-5 sm:p-6">
+          <div className="rounded-xl border border-white/6 bg-panel p-5 sm:p-6">
             <div className="mb-4 flex items-center gap-2">
               <span className="h-2 w-2 rounded-full bg-emerald-400" />
               <h3 className="text-sm font-semibold text-emerald-300">
@@ -281,7 +281,7 @@ export default function MedicalExplanationSection({
               (parameter, index) => (
                 <article
                   key={`${parameter.parameter_name}-${index}`}
-                  className="overflow-hidden rounded-xl border border-white/[0.07] bg-[#0b1120]"
+                  className="overflow-hidden rounded-xl border border-white/[0.07] bg-panel"
                 >
                   {/* Parameter Header */}
                   <div className="flex flex-col justify-between gap-3 border-b border-white/6 p-5 sm:flex-row sm:items-start sm:p-6">
@@ -365,7 +365,7 @@ export default function MedicalExplanationSection({
             )}
           </div>
         ) : (
-          <p className="mt-5 rounded-xl bg-[#0b1120] p-5 text-sm text-slate-500">
+          <p className="mt-5 rounded-xl bg-panel p-5 text-sm text-slate-500">
             No parameter explanations are available.
           </p>
         )}
@@ -391,7 +391,7 @@ export default function MedicalExplanationSection({
             )}
           </div>
         ) : (
-          <p className="mt-5 rounded-xl bg-[#0b1120] p-5 text-sm text-slate-500">
+          <p className="mt-5 rounded-xl bg-panel p-5 text-sm text-slate-500">
             No clinical context explanations are available.
           </p>
         )}
@@ -411,7 +411,7 @@ export default function MedicalExplanationSection({
               (observation, index) => (
                 <li
                   key={index}
-                  className="flex items-start gap-3 rounded-xl border border-white/5 bg-[#0b1120] p-4 text-sm leading-6 text-slate-300"
+                  className="flex items-start gap-3 rounded-xl border border-white/5 bg-panel p-4 text-sm leading-6 text-slate-300"
                 >
                   <span className="mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-emerald-400" />
                   <span>{observation}</span>

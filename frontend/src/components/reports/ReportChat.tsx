@@ -216,7 +216,7 @@ export default function ReportChat({ reportId, onClose }: ReportChatProps) {
               isSending ||
               isLoading
             }
-            className="flex items-center gap-2 rounded-lg border border-white/10 px-3 py-2 text-xs font-medium text-slate-400 transition hover:border-red-400/30 hover:text-red-300 disabled:cursor-not-allowed disabled:opacity-40"
+            className="flex items-center gap-2 rounded-lg border border-white/10 px-3 py-2 text-xs font-medium text-slate-400 transition hover:border-red-400/30 hover:text-red-300 disabled:cursor-not-allowed disabled:opacity-50"
             title="Clear conversation"
           >
             {isDeleting ? (
@@ -282,7 +282,7 @@ export default function ReportChat({ reportId, onClose }: ReportChatProps) {
                       type="button"
                       onClick={() => handleSendMessage(question)}
                       disabled={isSending}
-                      className="flex w-full items-center justify-between gap-3 rounded-xl border border-white/[0.07] bg-[#0b1120] px-4 py-3 text-left text-sm text-slate-300 transition hover:border-emerald-400/30 hover:bg-emerald-400/5 hover:text-emerald-200 disabled:opacity-50"
+                      className="flex w-full items-center justify-between gap-3 rounded-xl border border-white/[0.07] bg-panel px-4 py-3 text-left text-sm text-slate-300 transition hover:border-emerald-400/30 hover:bg-emerald-400/5 hover:text-emerald-200 disabled:opacity-50"
                     >
                       <span>{question}</span>
                       <span className="text-emerald-400">↗</span>
@@ -304,7 +304,7 @@ export default function ReportChat({ reportId, onClose }: ReportChatProps) {
                 <div
                   className={`max-w-[90%] min-w-0 rounded-2xl p-4 sm:max-w-[85%] ${message.role === "user"
                     ? "rounded-br-sm border border-emerald-400/20 bg-emerald-400/10"
-                    : "rounded-bl-sm border border-white/[0.07] bg-[#0b1120]"
+                    : "rounded-bl-sm border border-white/[0.07] bg-panel"
                     }`}
                 >
                   <div className="mb-2 flex items-center gap-2">
@@ -335,7 +335,7 @@ export default function ReportChat({ reportId, onClose }: ReportChatProps) {
                           ),
 
                           thead: ({ children }) => (
-                            <thead className="bg-white/10 text-gray-100">
+                            <thead className="bg-white/10 text-slate-100">
                               {children}
                             </thead>
                           ),
@@ -347,7 +347,7 @@ export default function ReportChat({ reportId, onClose }: ReportChatProps) {
                           ),
 
                           td: ({ children }) => (
-                            <td className="border-b border-white/10 px-4 py-3 align-top leading-relaxed text-gray-300">
+                            <td className="border-b border-white/10 px-4 py-3 align-top leading-relaxed text-slate-300">
                               {children}
                             </td>
                           ),
@@ -371,19 +371,19 @@ export default function ReportChat({ reportId, onClose }: ReportChatProps) {
                           ),
 
                           p: ({ children }) => (
-                            <p className="mb-3 break-words text-sm leading-7 text-gray-300">
+                            <p className="mb-3 break-words text-sm leading-7 text-slate-300">
                               {children}
                             </p>
                           ),
 
                           ul: ({ children }) => (
-                            <ul className="mb-3 ml-5 list-disc space-y-2 text-sm leading-7 text-gray-300">
+                            <ul className="mb-3 ml-5 list-disc space-y-2 text-sm leading-7 text-slate-300">
                               {children}
                             </ul>
                           ),
 
                           ol: ({ children }) => (
-                            <ol className="mb-3 ml-5 list-decimal space-y-2 text-sm leading-7 text-gray-300">
+                            <ol className="mb-3 ml-5 list-decimal space-y-2 text-sm leading-7 text-slate-300">
                               {children}
                             </ol>
                           ),
@@ -399,7 +399,7 @@ export default function ReportChat({ reportId, onClose }: ReportChatProps) {
                           ),
 
                           blockquote: ({ children }) => (
-                            <blockquote className="my-3 border-l-2 border-emerald-500 pl-4 text-gray-400">
+                            <blockquote className="my-3 border-l-2 border-emerald-500 pl-4 text-slate-400">
                               {children}
                             </blockquote>
                           ),
@@ -458,7 +458,7 @@ export default function ReportChat({ reportId, onClose }: ReportChatProps) {
             {/* AI loading indicator */}
             {isSending && (
               <div className="mb-5 flex justify-start">
-                <div className="rounded-2xl rounded-bl-sm border border-white/[0.07] bg-[#0b1120] px-4 py-3">
+                <div className="rounded-2xl rounded-bl-sm border border-white/[0.07] bg-panel px-4 py-3">
                   <div className="flex items-center gap-2">
                     <span className="h-2 w-2 animate-bounce rounded-full bg-emerald-400" />
                     <span className="h-2 w-2 animate-bounce rounded-full bg-emerald-400 [animation-delay:150ms]" />
@@ -492,7 +492,7 @@ export default function ReportChat({ reportId, onClose }: ReportChatProps) {
           event.preventDefault();
           handleSendMessage();
         }}
-        className="border-t border-white/6 bg-[#0b1120] p-4 sm:p-5"
+        className="border-t border-white/6 bg-panel p-4 sm:p-5"
       >
         <div className="flex items-end gap-3 rounded-xl border border-white/10 bg-slate-900/60 p-2 transition focus-within:border-emerald-400/40">
           <textarea
@@ -514,7 +514,7 @@ export default function ReportChat({ reportId, onClose }: ReportChatProps) {
               isLoading ||
               isDeleting
             }
-            className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-emerald-400 text-slate-950 transition hover:bg-emerald-300 disabled:cursor-not-allowed disabled:opacity-40"
+            className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-emerald-400 text-slate-950 transition hover:bg-emerald-300 disabled:cursor-not-allowed disabled:opacity-50"
             aria-label="Send message"
           >
             {isSending ? (

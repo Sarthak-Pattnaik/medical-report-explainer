@@ -15,7 +15,7 @@ import {
 import { registerUser } from "@/services/authService";
 
 const inputClass =
-  "w-full rounded-xl border border-white/8 bg-[#080d18] py-3.5 pl-12 pr-14 text-sm text-white outline-none transition placeholder:text-slate-600 focus:border-emerald-400/50 focus:ring-2 focus:ring-emerald-400/10";
+  "w-full rounded-xl border border-white/8 bg-app py-3.5 pl-12 pr-14 text-sm text-white outline-none transition placeholder:text-slate-600 focus:border-emerald-400/50 focus:ring-2 focus:ring-emerald-400/10";
 
 const inputIconClass =
   "pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-slate-500";
@@ -96,7 +96,7 @@ export default function RegisterPage() {
   }
 
   return (
-    <main className="relative flex min-h-screen items-center justify-center overflow-hidden bg-[#080d18] px-5 py-10 text-slate-100 sm:px-8">
+    <main className="relative flex min-h-screen items-center justify-center overflow-hidden bg-app px-5 py-10 text-slate-100 sm:px-8">
       {/* Background decorations */}
       <div className="pointer-events-none absolute inset-0 overflow-hidden">
         <div className="absolute -left-40 -top-40 h-96 w-96 rounded-full bg-emerald-500/[0.07] blur-[120px]" />
@@ -338,7 +338,7 @@ export default function RegisterPage() {
             <button
               type="submit"
               disabled={loading || !!success}
-              className="flex w-full items-center justify-center gap-2 rounded-xl bg-emerald-400 px-5 py-3.5 text-sm font-semibold text-slate-950 shadow-lg shadow-emerald-500/8 transition hover:bg-emerald-300 disabled:cursor-not-allowed disabled:opacity-50"
+              className="btn-primary w-full py-3.5 shadow-lg shadow-emerald-500/8"
             >
               {loading ? (
                 <>
