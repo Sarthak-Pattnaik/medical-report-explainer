@@ -10,6 +10,7 @@ from sqlalchemy.orm import Session
 from app.api.auth import router as auth_router
 from app.api.reports import router as reports_router
 from app.core.database import Base, engine, get_db
+from app.core.config import settings
 
 # These look unused, but importing them registers their tables on
 # Base.metadata, which create_all() below needs. Do not remove.
@@ -43,11 +44,7 @@ app = FastAPI(
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        "http://localhost:3000",
-        "http://127.0.0.1:3000",
-        "https://medical-report-explainer-lake.vercel.app"
-    ],
+    allow_origins=settings.cors_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"]
