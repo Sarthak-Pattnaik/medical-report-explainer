@@ -44,7 +44,7 @@ export default function DashboardPage() {
     useState<MedicalReport[]>([]);
 
   const [uploading, setUploading] = useState(false);
-  const [loadingReports, setLoadingReports] = useState(false);
+  const [loadingReports, setLoadingReports] = useState(true);
 
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
@@ -69,11 +69,28 @@ export default function DashboardPage() {
     }
   }, [loading, isAuthenticated, router]);
 
-  useEffect(() => {
-    if (isAuthenticated) {
-      loadReports();
+    useEffect(() => {
+    if (!isAuthenticated) {
+      return;
     }
-  }, [isAuthenticated, loadReports]);
+
+    let ignore = false;
+
+    getUserReports()
+      .then((data) => {
+        if (!ignore) setReports(data);
+      })
+      .catch(() => {
+        if (!ignore) setError("Unable to load your reports.");
+      })
+      .finally(() => {
+        if (!ignore) setLoadingReports(false);
+      });
+
+    return () => {
+      ignore = true;
+    };
+  }, [isAuthenticated]);
 
   function handleFileChange(
     event: ChangeEvent<HTMLInputElement>
