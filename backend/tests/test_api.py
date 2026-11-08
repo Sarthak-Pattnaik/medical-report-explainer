@@ -107,3 +107,25 @@ def test_upload_rejects_file_over_size_limit():
     )
 
     assert response.status_code == 413
+
+# ---------- CORS ----------
+
+def test_cors_allows_known_frontend():
+    response = client.get(
+        "/health",
+        headers={"Origin": "http://localhost:3000"},
+    )
+
+    assert (
+        response.headers.get("access-control-allow-origin")
+        == "http://localhost:3000"
+    )
+
+
+def test_cors_rejects_unknown_site():
+    response = client.get(
+        "/health",
+        headers={"Origin": "https://unknown-site.example.com"},
+    )
+
+    assert "access-control-allow-origin" not in response.headers
