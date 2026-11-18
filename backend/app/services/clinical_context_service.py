@@ -5,7 +5,17 @@ from dotenv import load_dotenv
 from groq import Groq
 
 from app.schemas.clinical_context import ClinicalContext
+from app.services.prompt_budget import shorten_text
 
+# Most report characters sent, so the prompt plus the answer
+# stay within Groq's 8,000-token limit. Longer reports keep
+# their start and end.
+CLINICAL_TEXT_CHARS = 7000
+
+SHORTENED_NOTE = (
+    "The report was too long to check in full. Only its start "
+    "and end were checked for clinical context."
+)
 
 load_dotenv()
 
@@ -34,6 +44,8 @@ class GroqClinicalContextService:
 
         if not extracted_text.strip():
             return ClinicalContext()
+
+        report_text = shorten_text(extracted_text, CLINICAL_TEXT_CHARS)
 
         prompt = f"""
 You are extracting clinical context from a medical report.
@@ -113,7 +125,7 @@ Always return every required top-level field, even when empty.
 Medical report text:
 
 ---BEGIN REPORT---
-{extracted_text}
+{report_text}
 ---END REPORT---
 """
 
@@ -134,6 +146,8 @@ Medical report text:
                     "content": prompt
                 }
             ],
+            # Reasoning tokens share this budget.
+            reasoning_effort="low",
             max_completion_tokens=4096,
             response_format={
                 "type": "json_schema",
@@ -158,5 +172,8 @@ Medical report text:
 
         if result.context_notes is None:
             result.context_notes = []
+
+        if report_text != extracted_text:
+            result.context_notes.append(SHORTENED_NOTE)
 
         return result
