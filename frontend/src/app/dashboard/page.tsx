@@ -92,6 +92,28 @@ export default function DashboardPage() {
     };
   }, [isAuthenticated]);
 
+  // While any report is processing, refresh the list every few
+  // seconds so its status updates without a page reload.
+  const hasProcessingReport = reports.some(
+    (report) => report.status === "processing"
+  );
+
+  useEffect(() => {
+    if (!hasProcessingReport) {
+      return;
+    }
+
+    const timer = window.setInterval(() => {
+      getUserReports()
+        .then(setReports)
+        .catch(() => {
+          // Keep the current list and try again next time.
+        });
+    }, 5000);
+
+    return () => window.clearInterval(timer);
+  }, [hasProcessingReport]);
+
   function handleFileChange(
     event: ChangeEvent<HTMLInputElement>
   ) {
@@ -136,7 +158,10 @@ export default function DashboardPage() {
 
       await uploadReport(selectedFile);
 
-      setMessage("Your report was uploaded successfully.");
+      setMessage(
+        "Your report was uploaded. Processing has started; " +
+          "long reports can take a few minutes."
+      );
       setSelectedFile(null);
 
       if (fileInputRef.current) {
@@ -178,7 +203,7 @@ export default function DashboardPage() {
     }
 
     if (
-      normalized === "failed" ||
+      normalized.endsWith("failed") ||
       normalized === "error"
     ) {
       return "border-red-400/20 bg-red-400/10 text-red-400";

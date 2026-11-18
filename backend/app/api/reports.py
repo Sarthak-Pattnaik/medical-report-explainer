@@ -2,7 +2,15 @@ import logging
 from pathlib import Path
 from uuid import uuid4
 
-from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, status
+from fastapi import (
+    APIRouter,
+    BackgroundTasks,
+    Depends,
+    File,
+    HTTPException,
+    UploadFile,
+    status,
+)
 from sqlalchemy.orm import Session
 from fastapi.responses import Response
 
@@ -13,17 +21,12 @@ from app.models.user import User
 
 from sqlalchemy import select
 from app.models.report_analysis import ReportAnalysis
-from app.services.ocr_service import extract_pages
-
-import os
 from app.services.storage_service import StorageService
 
-from app.services.extraction_service import (
-    extract_medical_data,
-)
-
-from app.services.clinical_context_service import (
-    GroqClinicalContextService
+from app.services.report_processing_service import (
+    PROCESSING,
+    process_report,
+    visible_status,
 )
 
 from app.services.explanation_service import (
@@ -53,9 +56,10 @@ MAX_FILE_SIZE = 10 * 1024 * 1024  # 10 MB
 
 @router.post(
     "/upload",
-    status_code=status.HTTP_201_CREATED
+    status_code=status.HTTP_202_ACCEPTED
 )
 async def upload_report(
+    background_tasks: BackgroundTasks,
     file: UploadFile = File(...),
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
@@ -104,177 +108,50 @@ async def upload_report(
         "application/octet-stream"
     )
 
-    storage_service = StorageService()
-    report = None
-
     try:
-
-        # --------------------------------------------------
-        # Upload to Supabase Storage
-        # --------------------------------------------------
-
-        storage_service.upload_bytes(
+        # Store the original file.
+        StorageService().upload_bytes(
             file_data=file_content,
             storage_path=storage_path,
             content_type=content_type,
         )
 
-        # --------------------------------------------------
-        # Create database record
-        # --------------------------------------------------
-
         report = MedicalReport(
             user_id=current_user.id,
             file_name=unique_filename,
             file_path=storage_path,
-            status="processing"
+            status=PROCESSING,
         )
 
         db.add(report)
         db.commit()
         db.refresh(report)
 
-        # --------------------------------------------------
-        # Download from Supabase temporarily for OCR
-        # --------------------------------------------------
-
-        ocr_file_path = storage_service.download_to_temp(
-            storage_path=storage_path,
-            suffix=extension,
-        )
-
-        try:
-            pages = extract_pages(
-                ocr_file_path
-            )
-            extracted_text = "\n".join(pages).strip()
-
-        finally:
-            try:
-                os.unlink(ocr_file_path)
-            except OSError:
-                pass
-
-        # --------------------------------------------------
-        # Structured extraction
-        # Groq → Gemini → Rule-based
-        # --------------------------------------------------
-
-        structured_data, extraction_method = (
-            extract_medical_data(
-                extracted_text,
-                pages=pages,
-            )
-        )
-
-        logger.info("Extraction method: %s", extraction_method)
-
-        if isinstance(structured_data, dict):
-            structured_data[
-                "extraction_method"
-            ] = extraction_method
-
-        # --------------------------------------------------
-        # Clinical context extraction
-        # --------------------------------------------------
-
-        try:
-            clinical_context_service = GroqClinicalContextService()
-
-            clinical_context = clinical_context_service.extract(
-                extracted_text
-            )
-
-            clinical_context_data = clinical_context.model_dump()
-
-        except Exception:
-            logger.exception("Clinical context extraction failed")
-
-            clinical_context_data = {
-                "medical_history": [],
-                "symptoms": [],
-                "medications": [],
-                "clinical_findings": [],
-                "recommendations": [],
-                "relevant_context": [],
-                "context_notes": [
-                "Clinical context extraction was unavailable."
-                ]
-            }
-
-        
-        # --------------------------------------------------
-        # Medical explanation generation
-        # --------------------------------------------------
-
-        try:
-            explanation_service = GroqExplanationService()
-
-            explanation = explanation_service.explain(
-                extracted_text=extracted_text,
-                structured_data=structured_data,
-                clinical_context=clinical_context_data
-            )
-
-            explanation_data = explanation.model_dump()
-
-            logger.info("Medical explanation generated")
-
-        except Exception:
-            logger.exception("Medical explanation generation failed")
-
-            explanation_data = None
-
-
-        # --------------------------------------------------
-        # Save analysis
-        # --------------------------------------------------
-
-        analysis = ReportAnalysis(
-            report_id=report.id,
-            extracted_text=extracted_text,
-            structured_data=structured_data,
-            clinical_context=clinical_context_data,
-            explanation=explanation_data
-        )
-
-        db.add(analysis)
-
-        report.status = "completed"
-
-        db.commit()
-        db.refresh(report)
-
     except Exception:
         db.rollback()
-        logger.exception("Report processing failed")
-
-        # Report was already committed before processing.
-        # Keep the Storage file so the report remains accessible.
-        if report is not None:
-            try:
-                report.status = "extraction_failed"
-                db.add(report)
-                db.commit()
-            except Exception:
-                db.rollback()
-                logger.exception("Could not mark report as failed")
+        logger.exception("Report upload failed")
 
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=(
-                "We couldn't process this report. Please try again "
-                "or upload a clearer file."
-            ),
+            detail="We couldn't upload this report. Please try again.",
         )
 
+    # OCR and AI steps can take minutes for a long report, so
+    # they run after the response is sent. The frontend checks
+    # GET /reports/{id} until the status changes.
+    background_tasks.add_task(
+        process_report,
+        report.id,
+        storage_path,
+        extension,
+    )
+
     return {
-        "message": "Report uploaded successfully",
+        "message": "Report uploaded. Processing has started.",
         "report_id": report.id,
         "file_name": report.file_name,
-        "status": report.status
+        "status": report.status,
     }
-
 
 
 @router.get("/")
@@ -292,7 +169,7 @@ def get_user_reports(
         {
             "id": report.id,
             "file_name": report.file_name,
-            "status": report.status,
+            "status": visible_status(report),
             "created_at": report.created_at
         }
         for report in reports
@@ -325,7 +202,7 @@ def get_report_details(
         "id": report.id,
         "file_name": report.file_name,
         "file_path": report.file_path,
-        "status": report.status,
+        "status": visible_status(report),
         "created_at": report.created_at
     }
 
