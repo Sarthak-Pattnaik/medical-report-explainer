@@ -80,6 +80,7 @@ def validate_extraction_result(
 
 def extract_medical_data(
     extracted_text: str,
+    pages: list[str] | None = None,
 ) -> tuple[dict, str]:
     """
     Extracts medical data using the following priority:
@@ -105,7 +106,8 @@ def extract_medical_data(
         groq_service = GroqExtractionService()
 
         groq_result = groq_service.extract(
-            extracted_text
+            extracted_text,
+            pages=pages,
         )
 
         groq_data = groq_result.model_dump()
