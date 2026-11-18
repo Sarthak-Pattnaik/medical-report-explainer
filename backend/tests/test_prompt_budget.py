@@ -57,7 +57,7 @@ def test_compact_parameter_drops_confidence_and_shortens_source():
     compact = compact_parameter(param("A", source_text="x" * 500))
 
     assert "confidence" not in compact
-    assert len(compact["source_text"]) == 150
+    assert len(compact["source_text"]) == 100
     assert compact["reference_range"] == "1 - 2"
 
 
@@ -141,6 +141,10 @@ def sent_input(request):
     return json.loads(prompt[start:end])
 
 
+def names(data):
+    return [line.split(":")[0] for line in data["structured_data"]["parameters"]]
+
+
 def prompt_tokens(request):
     return sum(estimate_tokens(m["content"]) for m in request["messages"])
 
@@ -154,7 +158,7 @@ def test_small_report_explains_every_result(monkeypatch):
     )
 
     data = sent_input(service.client.requests[0])
-    assert [p["name"] for p in data["structured_data"]["parameters"]] == ["A", "B"]
+    assert names(data) == ["A", "B"]
     assert data["original_report_text"] == "Report text"
     assert explanation.limitations == []
 
@@ -170,10 +174,10 @@ def test_large_report_fits_and_says_what_was_left_out(monkeypatch):
 
     request = service.client.requests[0]
     data = sent_input(request)
-    names = [p["name"] for p in data["structured_data"]["parameters"]]
+    sent_names = names(data)
 
-    assert len(names) == 12
-    assert "Test 50" in names
+    assert len(sent_names) == 12
+    assert "Test 50" in sent_names
     assert (
         prompt_tokens(request) + request["max_completion_tokens"]
         < TOKEN_LIMIT
@@ -183,20 +187,26 @@ def test_large_report_fits_and_says_what_was_left_out(monkeypatch):
 
 def test_too_large_request_retries_with_less(monkeypatch):
     service = make_service(
-        monkeypatch, [too_large_error(), json.dumps(EXPLANATION)]
+        monkeypatch,
+        [too_large_error(), too_large_error(), json.dumps(EXPLANATION)],
     )
     parameters = [param(f"Test {i}") for i in range(20)]
 
     service.explain("Report text", {"parameters": parameters}, {})
 
-    first, second = service.client.requests
-    assert len(sent_input(first)["structured_data"]["parameters"]) == 12
-    assert len(sent_input(second)["structured_data"]["parameters"]) == 6
-    assert "original_report_text" not in sent_input(second)
+    first, second, third = (
+        sent_input(request) for request in service.client.requests
+    )
+    # First drop the report text, then send fewer results.
+    assert len(names(first)) == 12
+    assert "original_report_text" in first
+    assert len(names(second)) == 12
+    assert "original_report_text" not in second
+    assert len(names(third)) == 8
 
 
 def test_gives_up_when_every_try_is_too_large(monkeypatch):
-    service = make_service(monkeypatch, [too_large_error()] * 3)
+    service = make_service(monkeypatch, [too_large_error()] * 4)
 
     with pytest.raises(APIStatusError):
         service.explain("text", {"parameters": [param("A")]}, {})
@@ -365,3 +375,73 @@ def test_other_bad_requests_are_not_retried(monkeypatch):
         service.explain("Report text", {"parameters": [param("A")]}, {})
 
     assert len(service.client.requests) == 1
+
+
+def test_rejected_answer_without_observations_is_asked_again(monkeypatch):
+    rejected = {
+        key: value
+        for key, value in EXPLANATION.items()
+        if key != "important_observations"
+    }
+    service = make_service(
+        monkeypatch,
+        [bad_json_error(json.dumps(rejected)), json.dumps(EXPLANATION)],
+    )
+
+    service.explain("Report text", {"parameters": [param("A")]}, {})
+
+    assert len(service.client.requests) == 2
+
+
+def test_empty_observations_are_filled_from_report_flags(monkeypatch):
+    service = make_service(monkeypatch, [json.dumps(EXPLANATION)])
+    parameters = [param("A", flag="high"), param("B"), param("C", flag="low")]
+
+    explanation = service.explain(
+        "Report text", {"parameters": parameters}, {}
+    )
+
+    assert explanation.important_observations == [
+        "The report flags 2 result(s) outside the reference range: "
+        "A (high), C (low). Please discuss these with your doctor."
+    ]
+
+
+def test_no_flags_means_no_made_up_observations(monkeypatch):
+    service = make_service(monkeypatch, [json.dumps(EXPLANATION)])
+
+    explanation = service.explain(
+        "Report text", {"parameters": [param("A")]}, {}
+    )
+
+    assert explanation.important_observations == []
+
+
+def test_source_text_is_added_from_extracted_data(monkeypatch):
+    answer = {
+        **EXPLANATION,
+        "parameter_explanations": [
+            {
+                "parameter_name": "Ferritin",
+                "result_summary": "18 ng/mL",
+                "what_it_measures": "Iron stores.",
+                "what_your_result_means": "Within the range.",
+                "why_it_matters": "Shows iron stores.",
+                "limitations": [],
+                "source_text": None,
+                "confidence": "high",
+            }
+        ],
+    }
+    service = make_service(monkeypatch, [json.dumps(answer)])
+
+    explanation = service.explain(
+        "Report text", {"parameters": [param("Ferritin")]}, {}
+    )
+
+    sent = sent_input(service.client.requests[0])
+    assert "source_text" not in sent["structured_data"]["parameters"][0]
+    assert (
+        explanation.parameter_explanations[0].source_text
+        == "Ferritin 1.0 g/dL 1 - 2"
+    )

@@ -20,6 +20,21 @@ import {
 
 import ReportChatWidget from "@/components/reports/ReportChatWidget";
 
+// How often to check a report that is still being processed.
+const POLL_INTERVAL_MS = 4000;
+
+function statusBadgeStyle(status: string) {
+  if (status === "completed") {
+    return "border-emerald-500/20 bg-emerald-500/10 text-emerald-300";
+  }
+
+  if (status.endsWith("failed")) {
+    return "border-red-400/20 bg-red-400/10 text-red-300";
+  }
+
+  return "border-amber-500/20 bg-amber-500/10 text-amber-300";
+}
+
 export default function ReportDetailsPage() {
   const params = useParams();
   const router = useRouter();
@@ -38,6 +53,10 @@ export default function ReportDetailsPage() {
 
   const reportId = Number(params.id);
   const isValidReportId = Number.isInteger(reportId) && reportId > 0;
+
+  // Analysis and explanation exist only once processing is done.
+  const isProcessing = report?.status === "processing";
+  const isCompleted = report?.status === "completed";
 
   const [explanation, setExplanation] =
     useState<MedicalExplanation | null>(null);
@@ -112,6 +131,7 @@ export default function ReportDetailsPage() {
   useEffect(() => {
     if (
       !isAuthenticated ||
+      !isCompleted ||
       !Number.isInteger(reportId) ||
       reportId <= 0
     ) {
@@ -138,12 +158,13 @@ export default function ReportDetailsPage() {
     };
 
     fetchAnalysis();
-  }, [isAuthenticated, reportId]);
+  }, [isAuthenticated, isCompleted, reportId]);
 
 
   useEffect(() => {
     if (
       !isAuthenticated ||
+      !isCompleted ||
       !Number.isInteger(reportId) ||
       reportId <= 0
     ) {
@@ -177,7 +198,26 @@ export default function ReportDetailsPage() {
     };
 
     fetchExplanation();
-  }, [isAuthenticated, reportId]);
+  }, [isAuthenticated, isCompleted, reportId]);
+
+  // While the report is processing, check its status every few
+  // seconds. When it changes to completed, the effects above load
+  // the analysis and explanation.
+  useEffect(() => {
+    if (!isProcessing) {
+      return;
+    }
+
+    const timer = window.setInterval(() => {
+      getReportDetails(reportId)
+        .then(setReport)
+        .catch(() => {
+          // Keep the last known status and try again next time.
+        });
+    }, POLL_INTERVAL_MS);
+
+    return () => window.clearInterval(timer);
+  }, [isProcessing, reportId]);
 
 
   useEffect(() => {
@@ -320,7 +360,9 @@ export default function ReportDetailsPage() {
                     </p>
                   </div>
 
-                  <span className="w-fit shrink-0 rounded-full border border-emerald-500/20 bg-emerald-500/10 px-3 py-1.5 text-xs font-medium text-emerald-300">
+                  <span
+                    className={`w-fit shrink-0 rounded-full border px-3 py-1.5 text-xs font-medium ${statusBadgeStyle(report.status)}`}
+                  >
                     {report.status
                       .replace(/_/g, " ")
                       .replace(/\b\w/g, (char) => char.toUpperCase())}
@@ -426,6 +468,8 @@ export default function ReportDetailsPage() {
                 </div>
               )}
 
+              {isCompleted ? (
+              <>
               <div className="mt-8 rounded-xl border border-white/10 bg-white/5 p-6">
                 <h2 className="mb-4 text-xl font-semibold">
                   Extracted Text
@@ -775,6 +819,44 @@ export default function ReportDetailsPage() {
               />
 
               <ReportChatWidget reportId={reportId} />
+              </>
+              ) : (
+                <div
+                  role="status"
+                  className={`mx-6 mb-6 rounded-xl border p-6 sm:mx-8 ${
+                    isProcessing
+                      ? "border-amber-500/15 bg-amber-500/5"
+                      : "border-red-400/15 bg-red-400/4"
+                  }`}
+                >
+                  {isProcessing ? (
+                    <div className="flex items-start gap-3">
+                      <span className="mt-0.5 h-5 w-5 shrink-0 animate-spin rounded-full border-2 border-amber-400 border-t-transparent" />
+
+                      <div>
+                        <p className="text-sm font-semibold text-amber-300">
+                          Processing your report
+                        </p>
+                        <p className="mt-1 text-sm leading-6 text-slate-400">
+                          We are reading the document and preparing
+                          the explanation. Long reports can take a few
+                          minutes. This page updates by itself.
+                        </p>
+                      </div>
+                    </div>
+                  ) : (
+                    <div>
+                      <p className="text-sm font-semibold text-red-300">
+                        We couldn&apos;t process this report
+                      </p>
+                      <p className="mt-1 text-sm leading-6 text-slate-400">
+                        Please upload it again, or upload a clearer
+                        file.
+                      </p>
+                    </div>
+                  )}
+                </div>
+              )}
             </section>
           </>
         ) : null}
