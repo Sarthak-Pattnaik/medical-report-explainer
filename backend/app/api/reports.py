@@ -13,7 +13,7 @@ from app.models.user import User
 
 from sqlalchemy import select
 from app.models.report_analysis import ReportAnalysis
-from app.services.ocr_service import extract_text
+from app.services.ocr_service import extract_pages
 
 import os
 from app.services.storage_service import StorageService
@@ -144,9 +144,10 @@ async def upload_report(
         )
 
         try:
-            extracted_text = extract_text(
+            pages = extract_pages(
                 ocr_file_path
             )
+            extracted_text = "\n".join(pages).strip()
 
         finally:
             try:
@@ -161,7 +162,8 @@ async def upload_report(
 
         structured_data, extraction_method = (
             extract_medical_data(
-                extracted_text
+                extracted_text,
+                pages=pages,
             )
         )
 

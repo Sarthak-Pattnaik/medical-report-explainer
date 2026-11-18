@@ -24,38 +24,34 @@ def extract_text_from_image(file_path: str) -> str:
 
     return text.strip()
 
-
-def extract_text_from_pdf(file_path: str) -> str:
+def extract_pages_from_pdf(file_path: str) -> list[str]:
     """
-    Extract text from a text-based PDF using PyMuPDF.
+    Extract text from a text-based PDF, one string per page.
     """
 
-    document = pymupdf.open(file_path) 
+    with pymupdf.open(file_path) as document:
+        return [page.get_text() for page in document]
 
-    extracted_text = []
 
-    for page in document:
-        text = page.get_text()
-        extracted_text.append(text)
+def extract_pages(file_path: str) -> list[str]:
+    """
+    Extract text page by page. An image counts as one page.
+    """
 
-    document.close()
+    extension = Path(file_path).suffix.lower()
 
-    return "\n".join(extracted_text).strip()
+    if extension in [".jpg", ".jpeg", ".png"]:
+        return [extract_text_from_image(file_path)]
+
+    if extension == ".pdf":
+        return extract_pages_from_pdf(file_path)
+
+    raise ValueError("Unsupported file type")
 
 
 def extract_text(file_path: str) -> str:
     """
-    Extract text based on the file extension.
+    Extract the full text as one string.
     """
 
-    path = Path(file_path)
-
-    extension = path.suffix.lower()
-
-    if extension in [".jpg", ".jpeg", ".png"]:
-        return extract_text_from_image(file_path)
-
-    if extension == ".pdf":
-        return extract_text_from_pdf(file_path)
-
-    raise ValueError("Unsupported file type")
+    return "\n".join(extract_pages(file_path)).strip()
