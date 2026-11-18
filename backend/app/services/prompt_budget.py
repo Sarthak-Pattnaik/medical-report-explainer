@@ -19,8 +19,15 @@ SAFETY_MARGIN = 500
 PARAMETER_FIELDS = ("name", "value", "unit", "flag", "reference_range")
 
 # Short enough to keep the prompt small, long enough to show
-# the line the value came from.
-SOURCE_TEXT_CHARS = 150
+# the line the value came from. Source lines are full of line
+# breaks and units, which cost more tokens than plain words.
+SOURCE_TEXT_CHARS = 100
+
+# Clinical context items sent per category.
+MAX_CONTEXT_ITEMS = 8
+
+# Flagged results named in the fallback observation.
+MAX_FLAGGED_NAMES = 10
 
 OMITTED_MARKER = "\n[... part of the report left out to fit the AI limit ...]\n"
 
@@ -71,6 +78,35 @@ def select_parameters(parameters: list[dict], limit: int) -> list[dict]:
     picked = sorted(ranked[:limit])
 
     return [parameters[index] for index in picked]
+
+
+def flagged_observations(parameters: list[dict]) -> list[str]:
+    """
+    A plain observation built from the report's own flags, used
+    when the AI returns no observations. Empty if nothing is
+    flagged.
+    """
+
+    flagged = [
+        f"{parameter.get('name')} ({parameter.get('flag')})"
+        for parameter in parameters
+        if flag_priority(parameter.get("flag")) < 2
+    ]
+
+    if not flagged:
+        return []
+
+    names = ", ".join(flagged[:MAX_FLAGGED_NAMES])
+    more = len(flagged) - MAX_FLAGGED_NAMES
+
+    if more > 0:
+        names += f" and {more} more"
+
+    return [
+        f"The report flags {len(flagged)} result(s) outside the "
+        f"reference range: {names}. Please discuss these with "
+        "your doctor."
+    ]
 
 
 def compact_parameter(parameter: dict) -> dict:
@@ -137,7 +173,7 @@ def compact_clinical_context(clinical_context: dict | None) -> dict:
                 if isinstance(item, dict)
                 else item
             )
-            for item in items
+            for item in items[:MAX_CONTEXT_ITEMS]
         ]
 
     return compact

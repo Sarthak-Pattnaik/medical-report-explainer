@@ -15,7 +15,7 @@ from app.services.knowledge_base import search_kb
 from app.services.prompt_budget import (
     chars_for_tokens,
     compact_clinical_context,
-    compact_parameter,
+    flagged_observations,
     parameter_line,
     select_parameters,
     shorten_text,
@@ -28,12 +28,26 @@ logger = logging.getLogger(__name__)
 KB_MIN_SCORE = 0.5
 
 # Answer sizes. Reasoning tokens share these budgets.
-EXPLANATION_COMPLETION_TOKENS = 4500
+EXPLANATION_COMPLETION_TOKENS = 4000
 CHAT_COMPLETION_TOKENS = 1500
 
 # Each try: (most results explained in detail, send report text).
-# If Groq says a request is too large, the next try sends less.
-EXPLANATION_TRIES = ((12, True), (6, False), (3, False))
+# If Groq says a request is too large (413), the next try sends
+# less. A 413 is refused at once and uses no tokens, so a try
+# that is too large costs almost nothing.
+EXPLANATION_TRIES = ((12, True), (12, False), (8, False), (4, False))
+
+# Knowledge base notes for the explanation. The model already
+# knows common tests, so two short notes are enough.
+EXPLANATION_KB_RESULTS = 2
+EXPLANATION_KB_CHARS = 600
+
+# Fields a rejected answer must still have to be used.
+REQUIRED_ANSWER_FIELDS = (
+    "report_summary",
+    "parameter_explanations",
+    "important_observations",
+)
 
 # Tries when the AI's answer does not match the JSON schema.
 # This happens now and then and usually works on the next try.
@@ -85,6 +99,29 @@ def _is_valid(model, item) -> bool:
         return False
 
 
+def _add_source_text(
+    explanation: MedicalExplanation,
+    parameters: list[dict],
+) -> None:
+    """
+    Copy each result's source line from the extracted data into
+    its explanation, matching by name.
+    """
+
+    source_by_name = {
+        str(parameter.get("name", "")).strip().lower(): (
+            parameter.get("source_text")
+        )
+        for parameter in parameters
+    }
+
+    for item in explanation.parameter_explanations:
+        source_text = source_by_name.get(item.parameter_name.strip().lower())
+
+        if source_text:
+            item.source_text = str(source_text)[:4000]
+
+
 def _repair_explanation(error: BadRequestError) -> MedicalExplanation | None:
     """
     When Groq rejects an answer, it sends the rejected answer
@@ -104,6 +141,10 @@ def _repair_explanation(error: BadRequestError) -> MedicalExplanation | None:
         return None
 
     if not isinstance(data, dict):
+        return None
+
+    # A missing summary or observation list is worth another try.
+    if any(field not in data for field in REQUIRED_ANSWER_FIELDS):
         return None
 
     for field, model in (
@@ -191,10 +232,12 @@ class GroqExplanationService:
         knowledge_context = (
             [
                 {
-                    "content": result["content"][:KB_CONTENT_CHARS],
+                    "content": result["content"][:EXPLANATION_KB_CHARS],
                     "source": result["source"],
                 }
-                for result in search_kb(query_text, top_k=3)
+                for result in search_kb(
+                    query_text, top_k=EXPLANATION_KB_RESULTS
+                )
                 if result["score"] >= KB_MIN_SCORE
             ]
             if query_text
@@ -319,9 +362,12 @@ JSON schema. Do not include Markdown or text outside JSON.
             selected = select_parameters(parameters, max_parameters)
 
             input_data = {
+                # One short line per result. Source lines are
+                # added back after the answer, so the AI does not
+                # have to read or copy them.
                 "structured_data": {
                     "parameters": [
-                        compact_parameter(parameter)
+                        parameter_line(parameter)
                         for parameter in selected
                     ],
                     "extraction_notes": structured_data.get(
@@ -362,12 +408,21 @@ JSON schema. Do not include Markdown or text outside JSON.
                     raise
 
                 logger.warning(
-                    "Explanation too large with %d results; "
-                    "trying with fewer",
+                    "Explanation too large with %d results "
+                    "(report text: %s): %s",
                     len(selected),
+                    "yes" if include_text else "no",
+                    error.message[:200],
                 )
                 too_large_error = error
                 continue
+
+            _add_source_text(explanation, selected)
+
+            if not explanation.important_observations:
+                explanation.important_observations = (
+                    flagged_observations(parameters)
+                )
 
             if len(selected) < len(parameters):
                 explanation.limitations.append(
@@ -398,7 +453,7 @@ For every parameter in structured_data.parameters:
   diagnosing or making unsupported clinical conclusions.
 - Explain why the test is generally relevant.
 - Include limitations where appropriate.
-- Preserve the source_text when it is supplied.
+- Set source_text to null. It is added afterwards.
 - Assign a grounding confidence level.
 
 For every relevant item in clinical_context:
