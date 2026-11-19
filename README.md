@@ -38,7 +38,7 @@ It is an **educational tool**, not a diagnostic one: it explains what a report s
 
 ### Report processing
 - **Upload** PDF, JPG, JPEG or PNG reports (up to 10 MB), stored privately in Supabase Storage.
-- **Text extraction**: PyMuPDF for text-based PDFs, Tesseract OCR for scanned PDF pages and images. Images are cleaned up first (rotation, grayscale, size, contrast), and English, Hindi and Bengali text is supported.
+- **Text extraction**: PyMuPDF for text-based PDFs, Tesseract OCR for scanned PDF pages and images. Images are cleaned up first (rotation, grayscale, size, contrast), and English, Hindi and Bengali text is supported. Pages Tesseract can't read well (usually handwriting) are read by a vision model on Groq, and the user is warned to check those values.
 - **Structured extraction** of every test into name, value, unit, reference range, flag and source text, with a fallback chain: **Groq → Google Gemini → rule-based parser**.
 - **Clinical context** extraction (history, medications, remarks) from the report text.
 
@@ -154,7 +154,7 @@ flowchart TD
 
 ### Uploading a report
 1. The file is validated (type, size) and stored in Supabase Storage.
-2. Text is extracted page by page with PyMuPDF. Pages without a text layer (scans) and images are read with Tesseract OCR, after fixing rotation and detecting the script to pick the language.
+2. Text is extracted page by page with PyMuPDF. Pages without a text layer (scans) and images are read with Tesseract OCR, after fixing rotation and detecting the script to pick the language. If Tesseract's confidence on a page is low (usually handwriting), the page image is read by a Groq vision model instead (up to 5 pages per report); unreadable parts are marked `[unclear]` and never guessed. Values from such reports get low confidence and a warning.
 3. Test results are extracted into structured data (Groq, then Gemini, then a rule-based parser as fallbacks).
 4. Clinical context (history, medications, remarks) is extracted.
 5. A plain-language explanation is generated, using relevant knowledge base entries as reference, and saved.
@@ -299,6 +299,8 @@ The full list with comments is in [`backend/.env.example`](backend/.env.example)
 | `GROQ_MODEL` | | Defaults to `openai/gpt-oss-20b` |
 | `CORS_ORIGINS` | | Comma-separated allowed frontend URLs. Defaults to localhost and the production Vercel URL |
 | `OCR_LANGUAGES` | | Limit the OCR language packs, e.g. `eng+hin`. Defaults to every installed pack among English, Hindi and Bengali |
+| `GROQ_VISION_MODEL` | | Vision model for handwritten pages. Defaults to `qwen/qwen3.8-27b` |
+| `VISION_OCR_ENABLED` | | Set to `false` to read every page with Tesseract only. Defaults to `true` |
 
 ### Frontend (`frontend/.env.local`)
 | Variable | Description |
@@ -405,7 +407,7 @@ All `/reports` endpoints require a valid token and only return the caller's own 
 ## Known Limitations
 
 - **OCR on photos** of reports (blurry, low-light, curved pages) can still misread values; clear PDFs work best.
-- **Handwriting** (prescriptions, doctor's notes) is not read reliably; Tesseract is made for printed text.
+- **Handwriting** is read by an AI vision model. Neat handwriting mostly works; messy writing (especially prescriptions) can still be misread, so values from handwritten pages are marked low confidence with a warning. At most 5 handwritten pages are read per report, and the Groq free tier limits it to a few dozen such pages per day.
 - **Other languages:** OCR reads English, Hindi and Bengali. Explanations are always in English.
 - **Scanned PDFs** are read up to 40 scanned pages per report.
 - **Groq free tier:** 8,000 tokens per minute. Uploading a report and chatting within the same minute can briefly fail — waiting about a minute fixes it.
