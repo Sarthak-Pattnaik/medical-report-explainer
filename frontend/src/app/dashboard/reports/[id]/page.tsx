@@ -576,6 +576,34 @@ export default function ReportDetailsPage() {
                   </div>
                 </div>
 
+                {/* Warning for pages read from handwriting */}
+                {analysis?.structured_data?.vision_pages?.length ? (
+                  <div
+                    role="note"
+                    className="mx-5 mt-5 flex items-start gap-3 rounded-xl border border-amber-500/20 bg-amber-500/[0.06] px-4 py-3.5 sm:mx-7"
+                  >
+                    <span aria-hidden="true" className="mt-0.5 text-amber-300">
+                      ⚠
+                    </span>
+                    <p className="text-sm leading-6 text-amber-200/90">
+                      <span className="font-semibold text-amber-300">
+                        Read from handwriting.
+                      </span>{" "}
+                      Page
+                      {analysis.structured_data.vision_pages.length === 1
+                        ? " "
+                        : "s "}
+                      {analysis.structured_data.vision_pages.join(", ")} looked
+                      handwritten or hard to read, so an AI model read{" "}
+                      {analysis.structured_data.vision_pages.length === 1
+                        ? "it"
+                        : "them"}
+                      . Values may be misread: check each one against your
+                      original report before relying on it.
+                    </p>
+                  </div>
+                ) : null}
+
                 {/* Parameters Table */}
                 {analysis?.structured_data?.parameters?.length ? (
                   <div className="overflow-x-auto">
