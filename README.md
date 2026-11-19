@@ -38,7 +38,7 @@ It is an **educational tool**, not a diagnostic one: it explains what a report s
 
 ### Report processing
 - **Upload** PDF, JPG, JPEG or PNG reports (up to 10 MB), stored privately in Supabase Storage.
-- **Text extraction**: PyMuPDF for text-based PDFs, Tesseract OCR for scanned PDFs and images.
+- **Text extraction**: PyMuPDF for text-based PDFs, Tesseract OCR for scanned PDF pages and images. Images are cleaned up first (rotation, grayscale, size, contrast), and English, Hindi and Bengali text is supported.
 - **Structured extraction** of every test into name, value, unit, reference range, flag and source text, with a fallback chain: **Groq → Google Gemini → rule-based parser**.
 - **Clinical context** extraction (history, medications, remarks) from the report text.
 
@@ -154,7 +154,7 @@ flowchart TD
 
 ### Uploading a report
 1. The file is validated (type, size) and stored in Supabase Storage.
-2. Text is extracted with PyMuPDF (PDFs) or Tesseract (images and scanned PDFs).
+2. Text is extracted page by page with PyMuPDF. Pages without a text layer (scans) and images are read with Tesseract OCR, after fixing rotation and detecting the script to pick the language.
 3. Test results are extracted into structured data (Groq, then Gemini, then a rule-based parser as fallbacks).
 4. Clinical context (history, medications, remarks) is extracted.
 5. A plain-language explanation is generated, using relevant knowledge base entries as reference, and saved.
@@ -228,10 +228,11 @@ medical-report-explainer/
 - **Python 3.11+** and **Node.js 20.9+** (CI uses Node 22)
 - **Git**
 - **Tesseract OCR**, installed separately (the `pytesseract` package only talks to it):
-  - **Windows:** install the [UB Mannheim build](https://github.com/UB-Mannheim/tesseract/wiki), then add `C:\Program Files\Tesseract-OCR` to your PATH and restart your terminal/editor
-  - **macOS:** `brew install tesseract`
-  - **Linux:** `sudo apt install tesseract-ocr`
-  - Check with `tesseract --version`
+  - **Windows:** install the [UB Mannheim build](https://github.com/UB-Mannheim/tesseract/wiki) (tick Hindi and Bengali under *Additional language data*), then add `C:\Program Files\Tesseract-OCR` to your PATH and restart your terminal/editor
+  - **macOS:** `brew install tesseract tesseract-lang`
+  - **Linux:** `sudo apt install tesseract-ocr tesseract-ocr-hin tesseract-ocr-ben`
+  - Check with `tesseract --version` and `tesseract --list-langs`
+  - Language packs are optional locally: missing ones are skipped and the text is read as English
 - A **Supabase** project (PostgreSQL with pgvector, and a Storage bucket), a **Groq** API key and optionally a **Gemini** API key
 
 ### 1. Clone
@@ -297,6 +298,7 @@ The full list with comments is in [`backend/.env.example`](backend/.env.example)
 | `SUPABASE_STORAGE_BUCKET` | | Defaults to `medical-reports` |
 | `GROQ_MODEL` | | Defaults to `openai/gpt-oss-20b` |
 | `CORS_ORIGINS` | | Comma-separated allowed frontend URLs. Defaults to localhost and the production Vercel URL |
+| `OCR_LANGUAGES` | | Limit the OCR language packs, e.g. `eng+hin`. Defaults to every installed pack among English, Hindi and Bengali |
 
 ### Frontend (`frontend/.env.local`)
 | Variable | Description |
@@ -402,10 +404,13 @@ All `/reports` endpoints require a valid token and only return the caller's own 
 
 ## Known Limitations
 
-- **OCR on photos** of reports (blurry, skewed, low-resolution) can fail; clear PDFs work best.
+- **OCR on photos** of reports (blurry, low-light, curved pages) can still misread values; clear PDFs work best.
+- **Handwriting** (prescriptions, doctor's notes) is not read reliably; Tesseract is made for printed text.
+- **Other languages:** OCR reads English, Hindi and Bengali. Explanations are always in English.
+- **Scanned PDFs** are read up to 40 scanned pages per report.
 - **Groq free tier:** 8,000 tokens per minute. Uploading a report and chatting within the same minute can briefly fail — waiting about a minute fixes it.
 - **Comparisons are ordered by upload time**, not by the test date printed on the report.
-- **Uploads are processed synchronously** (OCR + several AI calls in one request), so large files take a while.
+- **Large reports take a few minutes** to process. Processing runs in the background and the page updates by itself.
 - **Knowledge base content** is not stored in the repository, and topics without an entry are answered from the model's general knowledge (without source tags).
 - Chat source tags are not stored with messages, so they don't appear when chat history is reloaded.
 

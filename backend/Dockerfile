@@ -1,9 +1,14 @@
 FROM python:3.11-slim
 
-# Install Tesseract OCR and required language data
-RUN apt-get update && apt-get install -y \
+# Install Tesseract OCR with language data:
+# English, Hindi and Bengali, plus "osd" to detect
+# page rotation and script.
+RUN apt-get update && apt-get install -y --no-install-recommends \
     tesseract-ocr \
+    tesseract-ocr-osd \
     tesseract-ocr-eng \
+    tesseract-ocr-hin \
+    tesseract-ocr-ben \
     && rm -rf /var/lib/apt/lists/*
 
 # Set working directory
