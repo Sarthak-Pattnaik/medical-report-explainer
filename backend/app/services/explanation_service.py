@@ -53,6 +53,14 @@ REQUIRED_ANSWER_FIELDS = (
 # This happens now and then and usually works on the next try.
 MAX_JSON_TRIES = 2
 
+# Shown first in the limitations when pages were read by the
+# vision model (usually handwriting).
+HANDWRITING_LIMITATION = (
+    "Part of this report looked handwritten or hard to read and "
+    "was read by an AI vision model. Values may be misread: check "
+    "each one against your original report before relying on it."
+)
+
 MAX_REPORT_TEXT_CHARS = 15000
 MAX_CHAT_TEXT_CHARS = 12000
 KB_CONTENT_CHARS = 800
@@ -418,6 +426,9 @@ JSON schema. Do not include Markdown or text outside JSON.
                 continue
 
             _add_source_text(explanation, selected)
+
+            if structured_data.get("vision_pages"):
+                explanation.limitations.insert(0, HANDWRITING_LIMITATION)
 
             if not explanation.important_observations:
                 explanation.important_observations = (

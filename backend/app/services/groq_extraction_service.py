@@ -152,10 +152,13 @@ Rules:
    report information.
 5. Keep source_text short: copy only the line
    the value came from.
-6. Assign low confidence to unclear information.
-7. Do not provide diagnoses or treatment advice.
-8. Return only valid JSON.
-9. Follow the requested JSON structure exactly.
+6. Text marked [unclear] could not be read. Do not
+   extract a value, unit or range that is [unclear],
+   and do not guess it.
+7. Assign low confidence to unclear information.
+8. Do not provide diagnoses or treatment advice.
+9. Return only valid JSON.
+10. Follow the requested JSON structure exactly.
 
 Report text:
 ---

@@ -17,7 +17,7 @@ from app.services.clinical_context_service import (
 )
 from app.services.explanation_service import GroqExplanationService
 from app.services.extraction_service import extract_medical_data
-from app.services.ocr_service import extract_pages
+from app.services.ocr_service import extract_report
 from app.services.storage_service import StorageService
 
 logger = logging.getLogger(__name__)
@@ -62,6 +62,28 @@ def visible_status(report: MedicalReport) -> str:
     return report.status
 
 
+def mark_vision_pages(structured_data: dict, vision_pages: list[int]) -> None:
+    """
+    Values read from handwriting may be wrong, so every value is
+    given low confidence and the user is told to check them.
+    """
+
+    structured_data["vision_pages"] = vision_pages
+
+    for parameter in structured_data.get("parameters", []):
+        if isinstance(parameter, dict):
+            parameter["confidence"] = "low"
+
+    pages = ", ".join(str(number) for number in vision_pages)
+
+    structured_data.setdefault("extraction_notes", []).insert(
+        0,
+        f"Page(s) {pages} looked handwritten or hard to read and "
+        "were read by an AI vision model. Check every value against "
+        "your original report.",
+    )
+
+
 def analyse_report(storage_path: str, extension: str) -> dict:
     """
     Run every processing step and return the analysis fields.
@@ -76,7 +98,8 @@ def analyse_report(storage_path: str, extension: str) -> dict:
     )
 
     try:
-        pages = extract_pages(ocr_file_path)
+        extracted = extract_report(ocr_file_path)
+        pages = extracted.pages
         extracted_text = "\n".join(pages).strip()
     finally:
         try:
@@ -94,6 +117,9 @@ def analyse_report(storage_path: str, extension: str) -> dict:
 
     if isinstance(structured_data, dict):
         structured_data["extraction_method"] = extraction_method
+
+        if extracted.vision_pages:
+            mark_vision_pages(structured_data, extracted.vision_pages)
 
     try:
         clinical_context_data = (

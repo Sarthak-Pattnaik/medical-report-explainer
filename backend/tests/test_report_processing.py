@@ -9,11 +9,13 @@ from app.api.dependencies import get_current_user
 from app.core.database import get_db
 from app.main import app
 from app.services import report_processing_service as processing
+from app.services.ocr_service import ExtractedReport
 from app.services.report_processing_service import (
     COMPLETED,
     FAILED,
     PROCESSING,
     analyse_report,
+    mark_vision_pages,
     process_report,
     visible_status,
 )
@@ -194,7 +196,11 @@ def test_explanation_failure_still_completes(monkeypatch):
             raise RuntimeError("Groq is down")
 
     monkeypatch.setattr(processing, "StorageService", FakeStorage)
-    monkeypatch.setattr(processing, "extract_pages", lambda path: ["Ferritin 18"])
+    monkeypatch.setattr(
+        processing,
+        "extract_report",
+        lambda path: ExtractedReport(pages=["Ferritin 18"]),
+    )
     monkeypatch.setattr(
         processing,
         "extract_medical_data",
@@ -237,3 +243,22 @@ def test_stuck_processing_report_shows_as_failed():
 
 def test_other_statuses_are_unchanged():
     assert visible_status(report_created(COMPLETED, 300)) == COMPLETED
+
+
+def test_handwritten_pages_lower_confidence_and_add_note():
+    structured_data = {
+        "parameters": [
+            {"name": "Hb", "value": 11.8, "confidence": "high"},
+            {"name": "FBS", "value": 104, "confidence": "medium"},
+        ],
+        "extraction_notes": ["Earlier note."],
+    }
+
+    mark_vision_pages(structured_data, [1, 3])
+
+    assert structured_data["vision_pages"] == [1, 3]
+    assert {p["confidence"] for p in structured_data["parameters"]} == {"low"}
+    assert structured_data["extraction_notes"][0].startswith(
+        "Page(s) 1, 3 looked handwritten"
+    )
+    assert structured_data["extraction_notes"][1] == "Earlier note."

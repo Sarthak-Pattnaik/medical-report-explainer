@@ -66,6 +66,47 @@ def test_too_little_text_means_no_rotation(monkeypatch):
     assert ocr.detect_orientation(Image.new("L", (10, 10))) == (0, None)
 
 
+def fake_osd(rotate, orientation_conf, script="Latin", script_conf=5.0):
+    return lambda image, output_type: {
+        "rotate": rotate,
+        "orientation_conf": orientation_conf,
+        "script": script,
+        "script_conf": script_conf,
+    }
+
+
+def test_weak_rotation_guess_is_ignored(monkeypatch):
+    use_languages(monkeypatch, "eng", "osd")
+    monkeypatch.setattr(ocr.pytesseract, "image_to_osd", fake_osd(180, 0.7))
+
+    assert ocr.detect_orientation(Image.new("L", (10, 10))) == (0, "Latin")
+
+
+def test_weak_script_guess_is_ignored(monkeypatch):
+    use_languages(monkeypatch, "eng", "osd")
+    monkeypatch.setattr(
+        ocr.pytesseract,
+        "image_to_osd",
+        fake_osd(90, 5.0, script="Japanese", script_conf=0.1),
+    )
+
+    assert ocr.detect_orientation(Image.new("L", (10, 10))) == (90, None)
+
+
+def tesseract_data(words):
+    """
+    Fake image_to_data output. words: list of (text, confidence, line).
+    """
+
+    return {
+        "text": [w for w, _, _ in words],
+        "conf": [c for _, c, _ in words],
+        "block_num": [1] * len(words),
+        "par_num": [1] * len(words),
+        "line_num": [line for _, _, line in words],
+    }
+
+
 def test_rotated_page_is_turned_upright(monkeypatch):
     use_languages(monkeypatch, "eng", "hin")
     monkeypatch.setattr(
@@ -73,17 +114,134 @@ def test_rotated_page_is_turned_upright(monkeypatch):
     )
     seen = {}
 
-    def fake_ocr(image, lang):
+    def fake_data(image, lang, output_type):
         seen["size"] = image.size
         seen["lang"] = lang
-        return " text "
+        return tesseract_data(
+            [("Hb", 95, 1), ("11.8", 90, 1), ("", -1, 1), ("FBS", 50, 2)]
+        )
 
-    monkeypatch.setattr(ocr.pytesseract, "image_to_string", fake_ocr)
+    monkeypatch.setattr(ocr.pytesseract, "image_to_data", fake_data)
 
-    text = ocr.ocr_image(Image.new("L", (200, 100)))
+    result, upright = ocr.ocr_image(Image.new("L", (200, 100)))
 
-    assert text == "text"
+    assert result.text == "Hb 11.8\nFBS"
+    assert result.words == 3
+    assert round(result.confidence) == 78
+    assert round(result.low_share, 2) == 0.33
+    assert upright.size == (100, 200)
     assert seen == {"size": (100, 200), "lang": "eng+hin"}
+
+
+# ---------- When to use the vision model ----------
+
+TEXT_IMAGE = Image.new("L", (50, 50), "white")
+TEXT_IMAGE.paste(0, (10, 10, 40, 20))  # something on the page
+BLANK_IMAGE = Image.new("L", (50, 50), "white")
+
+
+def test_clear_print_stays_with_tesseract():
+    result = ocr.OcrResult("text", 92.0, 40, 0.02)
+
+    assert ocr.needs_vision(result, TEXT_IMAGE) is False
+
+
+def test_low_confidence_goes_to_vision():
+    assert ocr.needs_vision(ocr.OcrResult("x", 55.0, 30, 0.5), TEXT_IMAGE)
+
+
+def test_many_low_words_go_to_vision_even_with_good_average():
+    # Neat handwriting: decent average, but many unsure words.
+    assert ocr.needs_vision(ocr.OcrResult("x", 83.0, 24, 0.17), TEXT_IMAGE)
+
+
+def test_no_words_on_a_page_with_marks_goes_to_vision():
+    assert ocr.needs_vision(ocr.OcrResult("", 0.0, 0), TEXT_IMAGE)
+
+
+def test_blank_page_is_not_sent():
+    assert not ocr.needs_vision(ocr.OcrResult("", 0.0, 0), BLANK_IMAGE)
+
+
+@pytest.fixture
+def vision(monkeypatch):
+    """
+    Fake vision model. Set .reply to a string or an exception.
+    """
+
+    state = type("Vision", (), {"calls": 0, "reply": "Hb 11.8 g/dL"})()
+
+    def fake_read_page(image):
+        state.calls += 1
+        if isinstance(state.reply, Exception):
+            raise state.reply
+        return state.reply
+
+    monkeypatch.setattr(ocr.vision_ocr_service, "vision_enabled", lambda: True)
+    monkeypatch.setattr(ocr.vision_ocr_service, "read_page", fake_read_page)
+    return state
+
+
+def use_tesseract_result(monkeypatch, result):
+    monkeypatch.setattr(ocr, "ocr_image", lambda image: (result, image))
+
+
+HANDWRITTEN = ocr.OcrResult("Hb 4. g/AL", 50.0, 20, 0.5)
+PRINTED = ocr.OcrResult("Hb 11.8 g/dL", 93.0, 20, 0.0)
+
+
+def test_handwritten_page_is_read_by_vision(monkeypatch, vision):
+    use_tesseract_result(monkeypatch, HANDWRITTEN)
+
+    text, by_vision = ocr.read_image(TEXT_IMAGE, ocr._VisionBudget())
+
+    assert (text, by_vision) == ("Hb 11.8 g/dL", True)
+
+
+def test_printed_page_does_not_call_vision(monkeypatch, vision):
+    use_tesseract_result(monkeypatch, PRINTED)
+
+    text, by_vision = ocr.read_image(TEXT_IMAGE, ocr._VisionBudget())
+
+    assert (text, by_vision) == ("Hb 11.8 g/dL", False)
+    assert vision.calls == 0
+
+
+def test_vision_failure_keeps_tesseract_text(monkeypatch, vision):
+    vision.reply = RuntimeError("model removed")
+    use_tesseract_result(monkeypatch, HANDWRITTEN)
+
+    text, by_vision = ocr.read_image(TEXT_IMAGE, ocr._VisionBudget())
+
+    assert (text, by_vision) == ("Hb 4. g/AL", False)
+
+
+def test_empty_vision_answer_keeps_tesseract_text(monkeypatch, vision):
+    vision.reply = ""
+    use_tesseract_result(monkeypatch, HANDWRITTEN)
+
+    assert ocr.read_image(TEXT_IMAGE, ocr._VisionBudget()) == ("Hb 4. g/AL", False)
+
+
+def test_vision_off_keeps_tesseract_text(monkeypatch, vision):
+    monkeypatch.setattr(ocr.vision_ocr_service, "vision_enabled", lambda: False)
+    use_tesseract_result(monkeypatch, HANDWRITTEN)
+
+    assert ocr.read_image(TEXT_IMAGE, ocr._VisionBudget()) == ("Hb 4. g/AL", False)
+    assert vision.calls == 0
+
+
+def test_vision_page_limit(monkeypatch, vision):
+    monkeypatch.setattr(ocr, "MAX_VISION_PAGES", 1)
+    use_tesseract_result(monkeypatch, HANDWRITTEN)
+    budget = ocr._VisionBudget()
+
+    first = ocr.read_image(TEXT_IMAGE, budget)
+    second = ocr.read_image(TEXT_IMAGE, budget)
+
+    assert first[1] is True
+    assert second == ("Hb 4. g/AL", False)
+    assert vision.calls == 1
 
 
 # ---------- Image clean-up ----------
@@ -125,11 +283,11 @@ def make_pdf(path, pages):
 def fake_page_ocr(monkeypatch):
     calls = []
 
-    def fake(image):
+    def fake(image, budget):
         calls.append(image.size)
-        return f"OCR page {len(calls)}"
+        return f"OCR page {len(calls)}", False
 
-    monkeypatch.setattr(ocr, "ocr_image", fake)
+    monkeypatch.setattr(ocr, "read_image", fake)
     return calls
 
 
@@ -167,10 +325,10 @@ def test_ocr_page_limit(tmp_path, fake_page_ocr, monkeypatch):
 
 
 def test_failed_page_does_not_stop_the_report(tmp_path, monkeypatch):
-    def broken(image):
+    def broken(image, budget):
         raise RuntimeError("tesseract crashed")
 
-    monkeypatch.setattr(ocr, "ocr_image", broken)
+    monkeypatch.setattr(ocr, "read_image", broken)
     path = tmp_path / "report.pdf"
     make_pdf(path, [None, "Ferritin 18 ng/mL 30 - 400"])
 
@@ -183,3 +341,15 @@ def test_failed_page_does_not_stop_the_report(tmp_path, monkeypatch):
 def test_unsupported_file_type():
     with pytest.raises(ValueError):
         ocr.extract_pages("report.docx")
+
+
+def test_pdf_reports_which_pages_used_vision(tmp_path, monkeypatch):
+    replies = iter([("printed", False), ("handwritten", True)])
+    monkeypatch.setattr(ocr, "read_image", lambda image, budget: next(replies))
+    path = tmp_path / "report.pdf"
+    make_pdf(path, ["Ferritin 18 ng/mL 30 - 400", None, None])
+
+    report = ocr.extract_report(str(path))
+
+    assert report.pages[1:] == ["printed", "handwritten"]
+    assert report.vision_pages == [3]
