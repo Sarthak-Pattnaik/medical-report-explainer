@@ -99,6 +99,8 @@ export interface StructuredData {
   parameters: StructuredParameter[];
   extraction_notes: string[];
   extraction_method?: "groq" | "gemini" | "rule_based" | "failed";
+  // Pages read by the AI vision model (usually handwriting).
+  vision_pages?: number[];
 }
 
 

@@ -445,3 +445,15 @@ def test_source_text_is_added_from_extracted_data(monkeypatch):
         explanation.parameter_explanations[0].source_text
         == "Ferritin 1.0 g/dL 1 - 2"
     )
+
+
+def test_handwritten_report_gets_a_warning_first(monkeypatch):
+    service = make_service(monkeypatch, [json.dumps(EXPLANATION)])
+
+    explanation = service.explain(
+        "Report text",
+        {"parameters": [param("A")], "vision_pages": [1]},
+        {},
+    )
+
+    assert explanation.limitations[0] == service_module.HANDWRITING_LIMITATION
